@@ -169,6 +169,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare-release script
+        run: pnpm test:prepare-release
+
       - name: Format
         run: pnpm format:check
 
