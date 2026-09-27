@@ -1192,8 +1192,7 @@ export class AgentThread {
     });
 
     if (finishReason === 'length') {
-      const errorContent =
-        completion?.type === 'error' ? (completion.error ?? 'max_tokens breached') : 'max_tokens breached';
+      const errorContent = completion?.type === 'error' ? completion.error : 'max_tokens breached';
       yield this.generateErrorEvent(errorContent, agentAssistantMessage);
       return { outcome: 'exit', modelMessageEventId };
     }
@@ -1378,7 +1377,7 @@ export class AgentThread {
       return { ...base, status: 'done', output: c.output };
     }
     if (c.type === 'error') {
-      return { ...base, status: 'error', error: c.error ?? 'Sub-agent errored', output: c.output };
+      return { ...base, status: 'error', error: c.error, output: c.output };
     }
     return { ...base, status: 'cancelled', reason: c.reason };
   }
