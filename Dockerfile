@@ -11,8 +11,8 @@
 # file builds on Railway Metal (which requires a hardcoded service id in mount ids).
 #
 # Base images are build args so a local or contributor build stays on the public
-# Docker Hub image. The release workflow overrides both with the private
-# Chainguard images (builder: node:24-dev, runtime: node:24).
+# Docker Hub image. The release workflow overrides both with the Chainguard node
+# images mirrored into the devtest ECR (builder: node:24-dev, runtime: node:24).
 
 ARG BUILD_BASE_IMAGE=node:24-slim
 ARG RUNTIME_BASE_IMAGE=node:24-slim

@@ -10,17 +10,17 @@
 #   - none pending + unpublished versions → pack (build/test) + Windows npx smoke
 #     in parallel with the from-source image (image waits only on npm view of
 #     @truefoundry/trueforge@version; skip image+chart if that version is already
-#     on npm). The release image is built on the private Chainguard node bases.
-#     Local and contributor builds do not get those credentials and stay on
-#     node:24-slim. After the image is pushed, this workflow calls
-#     release-chart.yml with branch main, app_version, and image_tag. Helm does
-#     not wait on pack.
+#     on npm). The release image is built on the Chainguard node images mirrored
+#     into the devtest ECR. Local and contributor builds stay on node:24-slim.
+#     After the image is pushed, this workflow calls release-chart.yml with
+#     branch main, app_version, and image_tag. Helm does not wait on pack.
 # Merge the Version Packages PR to publish. After Helm publish, release-chart.yml
 # tags charts/trueforge@<chartVersion> on the metadata commit.
 #
 # Auth is GitHub OIDC (no NPM_TOKEN / PYPI_TOKEN). An `_authToken` in user `.npmrc`
 # disables pnpm's OIDC exchange, so the npm publish job must not set NPM_TOKEN /
-# NODE_AUTH_TOKEN. id-token is granted only on the publish jobs.
+# NODE_AUTH_TOKEN. id-token is granted on the publish jobs and on the image job
+# (OIDC into the devtest ECR to pull the mirrored bases).
 name: Version or publish packages
 
 on:
@@ -325,10 +325,11 @@ jobs:
             exit 1
           fi
 
-  # Inlined instead of github-workflows-public build.yml: Chainguard login has to
-  # happen in the same job that pulls the base images, and that reusable workflow
-  # has no cgr.dev auth. Secrets here are available only on this repo's main
-  # pushes and dispatch, not on fork CI.
+  # Inlined instead of github-workflows-public build.yml. That workflow can push
+  # to public ECR, but it cannot log in to the private devtest ECR where the
+  # Chainguard bases are mirrored. The private truefoundry/workflows build.yml
+  # can (enable_ecr_auth), and this repo cannot call it. OIDC here is the same
+  # role helm-charts uses to sync those mirrors. Fork CI never receives it.
   build-image:
     name: Build and push server image
     if: needs.resolve-image.outputs.skip == 'false'
@@ -337,32 +338,33 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Check out repo
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Require Chainguard credentials
+      - name: Require devtest ECR role
         env:
-          CHAINGUARD_USERNAME: ${{ secrets.TRUEFORGE_CHAINGUARD_USERNAME }}
-          CHAINGUARD_PASSWORD: ${{ secrets.TRUEFORGE_CHAINGUARD_PASSWORD }}
+          ECR_ROLE_ARN: ${{ secrets.AWS_DEVTEST_ECR_IAM_ROLE_ARN }}
         run: |
           set -euo pipefail
-          if [ -z "$CHAINGUARD_USERNAME" ] || [ -z "$CHAINGUARD_PASSWORD" ]; then
-            echo "Set TRUEFORGE_CHAINGUARD_USERNAME and TRUEFORGE_CHAINGUARD_PASSWORD to build the release image." >&2
+          if [ -z "$ECR_ROLE_ARN" ]; then
+            echo "Set AWS_DEVTEST_ECR_IAM_ROLE_ARN so the release build can pull the mirrored Chainguard bases." >&2
             exit 1
           fi
 
-      - name: Resolve Chainguard base images
+      - name: Resolve base images
         id: base
         env:
           BUILD_BASE_IMAGE: ${{ vars.TRUEFORGE_CHAINGUARD_NODE_DEV_IMAGE }}
           RUNTIME_BASE_IMAGE: ${{ vars.TRUEFORGE_CHAINGUARD_NODE_IMAGE }}
         run: |
           set -euo pipefail
-          BUILD_BASE_IMAGE="${BUILD_BASE_IMAGE:-cgr.dev/truefoundry.com/node:24-dev}"
-          RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE:-cgr.dev/truefoundry.com/node:24}"
+          # Mirror targets from helm-charts scripts/sync-images/images.yaml.
+          BUILD_BASE_IMAGE="${BUILD_BASE_IMAGE:-526077812922.dkr.ecr.us-east-1.amazonaws.com/tfy-internal/node:24-dev}"
+          RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE:-526077812922.dkr.ecr.us-east-1.amazonaws.com/tfy-internal/node:24}"
           echo "build_base_image=$BUILD_BASE_IMAGE" >> "$GITHUB_OUTPUT"
           echo "runtime_base_image=$RUNTIME_BASE_IMAGE" >> "$GITHUB_OUTPUT"
 
@@ -376,12 +378,14 @@ jobs:
           username: ${{ secrets.TRUEFORGE_ARTIFACTORY_USERNAME }}
           password: ${{ secrets.TRUEFORGE_ARTIFACTORY_PASSWORD }}
 
-      - name: Log in to Chainguard
-        uses: docker/login-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: cgr.dev
-          username: ${{ secrets.TRUEFORGE_CHAINGUARD_USERNAME }}
-          password: ${{ secrets.TRUEFORGE_CHAINGUARD_PASSWORD }}
+          role-to-assume: ${{ secrets.AWS_DEVTEST_ECR_IAM_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push
         uses: docker/build-push-action@v6
