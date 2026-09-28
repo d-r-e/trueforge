@@ -86,34 +86,33 @@ export function AttachmentCard({
       data-slot="aui_attachment-chip"
       style={previewRem != null ? { maxWidth: `${previewRem}rem` } : undefined}
       className={cn(
-        'aui-attachment-chip relative shrink-0',
+        'aui-attachment-chip group relative shrink-0 overflow-hidden rounded-lg border border-primary-button-bg/20',
         imageChip
           ? 'size-14'
-          : 'bg-secondary-bg flex max-w-full min-w-0 items-center gap-3 rounded-lg border border-primary-button-bg/20 p-3',
-        !imageChip && onRemove != null && 'pe-10',
+          : cn(
+              'bg-secondary-bg flex h-14 min-w-0 items-center gap-2 px-2 py-1.5',
+              previewRem == null && 'max-w-40',
+              onRemove != null && 'pe-6',
+            ),
         className,
       )}
     >
       {imageChip ? (
-        <>
-          <div className="bg-secondary-bg relative size-full overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] border border-primary-button-bg/20">
-            <Avatar className="size-full rounded-none">
-              <AvatarImage src={previewSrc} alt={name} className="object-cover" />
-              <AvatarFallback className="rounded-none bg-secondary-bg bg-none text-text-secondary">
-                <Icon name="file" size="1.5rem" className="text-text-secondary" />
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </>
+        <Avatar className="size-full rounded-none">
+          <AvatarImage src={previewSrc} alt={name} className="object-cover" />
+          <AvatarFallback className="rounded-none bg-secondary-bg bg-none text-text-secondary">
+            <Icon name="file" size="1.5rem" className="text-text-secondary" />
+          </AvatarFallback>
+        </Avatar>
       ) : (
         <>
-          <Icon name={fileIcon} size="2.5rem" className="text-text-secondary" />
-          <div className="flex min-w-0 flex-col gap-1">
+          <Icon name={fileIcon} size="1.5rem" className="text-text-secondary shrink-0" />
+          <div className="flex min-w-0 flex-col gap-0.5">
             <Tooltip content={name} side="top" triggerClassName="min-w-0">
               <span className="text-text-primary min-w-0 truncate text-sm font-medium">{name}</span>
             </Tooltip>
             {sizeBytes != null ? (
-              <span className="text-text-secondary text-xs">{formatFileSize(sizeBytes)}</span>
+              <span className="text-text-secondary truncate text-xs">{formatFileSize(sizeBytes)}</span>
             ) : null}
           </div>
         </>
@@ -127,14 +126,14 @@ export function AttachmentCard({
             variant: 'ghost',
             size: 'icon',
             className:
-              'aui-attachment-tile-remove absolute inset-e-1 top-1 z-10 size-5 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white',
+              'aui-attachment-tile-remove absolute inset-e-0.5 top-0.5 z-10 size-4 rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/70 hover:text-white',
           })}
           onClick={e => {
             e.stopPropagation();
             onRemove();
           }}
         >
-          <Icon name="xmark" size="0.75rem" />
+          <Icon name="xmark" size="0.625rem" />
         </button>
       )}
     </div>

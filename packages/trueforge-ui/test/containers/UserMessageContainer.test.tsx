@@ -80,7 +80,42 @@ describe('UserMessageContainer', () => {
     const chip = screen.getByText('report.pdf').closest("[data-slot='aui_attachment-chip']");
     expect(chip).toHaveStyle({ maxWidth: '12rem' });
     expect(screen.getByText('1.00 KB')).toBeInTheDocument();
-    expect(document.querySelector('.aui-user-message-attachments-end')).toHaveClass('flex-wrap');
+    expect(document.querySelector('.aui-user-message-attachments-end')).toHaveClass('flex-col');
+    expect(chip?.parentElement).toHaveClass('flex-wrap');
+  });
+
+  it('renders image previews and file chips in separate rows', () => {
+    renderUserMessage([
+      {
+        role: 'user',
+        content: 'Mixed',
+        attachments: [
+          {
+            id: 'att-file',
+            type: 'file',
+            name: 'notes.txt',
+            contentType: 'text/plain',
+            status: { type: 'complete' },
+            content: [{ type: 'file', mimeType: 'text/plain', filename: 'notes.txt', data: 'data:text/plain;base64,eA==' }],
+          },
+          {
+            id: 'att-image',
+            type: 'image',
+            name: 'photo.png',
+            contentType: 'image/png',
+            status: { type: 'complete' },
+            content: [{ type: 'image', image: 'data:image/png;base64,iVBORw0KGgo=', filename: 'photo.png' }],
+          },
+        ],
+      },
+    ]);
+
+    const container = document.querySelector('.aui-user-message-attachments-end');
+    const rows = Array.from(container?.children ?? []);
+    const imageRowIndex = rows.findIndex(row => row.contains(screen.getByAltText('photo.png')));
+    const fileRowIndex = rows.findIndex(row => row.contains(screen.getByText('notes.txt')));
+    expect(imageRowIndex).toBeGreaterThanOrEqual(0);
+    expect(fileRowIndex).toBeGreaterThan(imageRowIndex);
   });
 
   it('shows the action bar when the thread is idle', () => {

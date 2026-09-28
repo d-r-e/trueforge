@@ -50,7 +50,7 @@ function ComposerAttachmentItem() {
   );
 }
 
-function MessageAttachmentItem() {
+function MessageAttachmentItem({ kind }: { kind: 'image' | 'file' }) {
   const AttachmentPreviewDialog = useSlot('AttachmentPreviewDialog');
   const AttachmentCard = useSlot('AttachmentCard');
   const name = useAuiState(s => s.attachment.name);
@@ -59,6 +59,9 @@ function MessageAttachmentItem() {
   const isImage = isImageAttachment(type, contentType);
   const previewSrc = useAttachmentPreviewSrc();
   const sizeBytes = useAttachmentSizeBytes();
+  const isPreview = isImage && previewSrc != null;
+
+  if ((kind === 'image') !== isPreview) return null;
 
   const card = (
     <AttachmentCard
@@ -72,7 +75,7 @@ function MessageAttachmentItem() {
     />
   );
 
-  if (isImage && previewSrc) {
+  if (isPreview && previewSrc) {
     return <AttachmentPreviewDialog previewSrc={previewSrc}>{card}</AttachmentPreviewDialog>;
   }
 
@@ -81,16 +84,23 @@ function MessageAttachmentItem() {
 
 export function ComposerAttachmentsContainer() {
   return (
-    <div className="aui-composer-attachments flex w-full min-w-0 flex-row flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden empty:hidden">
+    <div className="aui-composer-attachments aui-scrollbar-hidden flex w-full min-w-0 flex-row flex-nowrap items-center gap-2 overflow-x-auto overflow-y-hidden empty:hidden">
       <ComposerPrimitive.Attachments>{() => <ComposerAttachmentItem />}</ComposerPrimitive.Attachments>
     </div>
   );
 }
 
+const messageAttachmentRowClass = 'flex flex-row flex-wrap justify-end gap-2 empty:hidden';
+
 export function MessageAttachmentsContainer() {
   return (
-    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row flex-wrap justify-end gap-2">
-      <MessagePrimitive.Attachments>{() => <MessageAttachmentItem />}</MessagePrimitive.Attachments>
+    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-col items-end gap-2">
+      <div className={messageAttachmentRowClass}>
+        <MessagePrimitive.Attachments>{() => <MessageAttachmentItem kind="image" />}</MessagePrimitive.Attachments>
+      </div>
+      <div className={messageAttachmentRowClass}>
+        <MessagePrimitive.Attachments>{() => <MessageAttachmentItem kind="file" />}</MessagePrimitive.Attachments>
+      </div>
     </div>
   );
 }

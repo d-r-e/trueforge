@@ -169,6 +169,7 @@ describe('attachment containers', () => {
       'flex-nowrap',
       'overflow-x-auto',
       'overflow-y-hidden',
+      'aui-scrollbar-hidden',
     );
   });
 
