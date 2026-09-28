@@ -30,6 +30,7 @@ const expectedRuntimeExports: Array<keyof typeof sdk> = [
   'AgentRuntimeConfigDrawer',
   'AgentRuntimeEditorContent',
   'AgentSkillsEditorContent',
+  'AgentSkillsHeaderActionSlot',
   'AgentSessionsFilters',
   'AgentStepsCard',
   'AgentStepsContainer',
