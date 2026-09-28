@@ -326,16 +326,15 @@ jobs:
             exit 1
           fi
 
-  # truefoundry/workflows build.yml (private): it can authenticate to the
-  # TrueFoundry private registry that holds the hardened bases, which the public
-  # build workflow cannot. The ECR role is the same one helm-charts uses to sync
-  # those mirrors; it is only for pulling bases, the image itself goes to JFrog.
-  # Fork CI never receives it.
-  build-image:
-    name: Build and push server image
+  # Two images, same tag, different Artifactory repos. The public one keeps the
+  # Dockerfile's public bases so it stays redistributable; the hardened one is
+  # built from Chainguard bases whose licence forbids publishing them, so it
+  # only goes to the private repo that TrueFoundry SaaS pulls from.
+  build-image-public:
+    name: Build and push public server image
     if: needs.resolve-image.outputs.skip == 'false'
     needs: [resolve-image]
-    uses: truefoundry/workflows/.github/workflows/build.yml@main
+    uses: truefoundry/github-workflows-public/.github/workflows/build.yml@main
     permissions:
       id-token: write
       contents: read
@@ -348,21 +347,47 @@ jobs:
       dockerfile_path: Dockerfile
       platforms: linux/amd64
       enable_jfrog: true
-      use_depot: false
+      enable_public_ecr: false
+    secrets:
+      artifactory_username: ${{ secrets.TRUEFORGE_ARTIFACTORY_USERNAME }}
+      artifactory_password: ${{ secrets.TRUEFORGE_ARTIFACTORY_PASSWORD }}
+
+  build-image-private:
+    name: Build and push hardened server image
+    if: needs.resolve-image.outputs.skip == 'false'
+    needs: [resolve-image]
+    uses: truefoundry/github-workflows-public/.github/workflows/build.yml@main
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      artifactory_registry_url: ${{ vars.TRUEFOUNDRY_ARTIFACTORY_REGISTRY_URL }}
+      artifactory_repository_url: ${{ vars.TRUEFOUNDRY_ARTIFACTORY_PRIVATE_REPOSITORY }}
+      image_artifact_name: trueforge
+      image_tag: ${{ needs.resolve-image.outputs.image_tag }}
+      image_context: .
+      dockerfile_path: Dockerfile
+      platforms: linux/amd64
+      enable_jfrog: true
+      enable_public_ecr: false
+      # Pull-only credential for the devtest account that helm-charts mirrors the
+      # hardened bases into; the image itself still goes to Artifactory.
+      enable_private_ecr_pull: true
+      private_ecr_pull_registry: 526077812922.dkr.ecr.us-east-1.amazonaws.com
       # Mirror targets from helm-charts scripts/sync-images/images.yaml. Unset
       # variables fall back to those tags; an empty build arg would break FROM.
       image_build_args: |
         BUILD_BASE_IMAGE=${{ vars.TRUEFORGE_NODE_BUILD_BASE_IMAGE || '526077812922.dkr.ecr.us-east-1.amazonaws.com/tfy-internal/node:24-dev' }}
         RUNTIME_BASE_IMAGE=${{ vars.TRUEFORGE_NODE_RUNTIME_BASE_IMAGE || '526077812922.dkr.ecr.us-east-1.amazonaws.com/tfy-internal/node:24' }}
     secrets:
-      artifactory_username: ${{ secrets.TRUEFORGE_ARTIFACTORY_USERNAME }}
-      artifactory_password: ${{ secrets.TRUEFORGE_ARTIFACTORY_PASSWORD }}
-      ecr_iam_role_arn: ${{ secrets.AWS_DEVTEST_ECR_IAM_ROLE_ARN }}
+      artifactory_username: ${{ secrets.TRUEFOUNDRY_ARTIFACTORY_PRIVATE_USERNAME }}
+      artifactory_password: ${{ secrets.TRUEFOUNDRY_ARTIFACTORY_PRIVATE_PASSWORD }}
+      private_ecr_pull_role_arn: ${{ secrets.AWS_DEVTEST_ECR_IAM_ROLE_ARN }}
 
   release-chart:
     name: Publish Helm chart
     if: needs.resolve-image.outputs.skip == 'false'
-    needs: [resolve-image, build-image]
+    needs: [resolve-image, build-image-public, build-image-private]
     uses: ./.github/workflows/release-chart.yml
     permissions:
       contents: write
