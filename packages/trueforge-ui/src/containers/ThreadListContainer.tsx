@@ -10,6 +10,9 @@ import {
 } from '@assistant-ui/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 
+import { AnalyticsEvents } from '../analytics/events.js';
+import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { withSessionProps } from '../analytics/sessionProps.js';
 import { AgentHistoryFilterButton } from '../atoms/AgentHistoryFilterButton.js';
 import { auiButtonClass } from '../atoms/lib/buttonClasses.js';
 import { cn } from '../atoms/lib/cn.js';
@@ -178,6 +181,7 @@ function ThreadListItemRow({
 }) {
   const aui = useAui();
   const shell = useOptionalShellMode();
+  const track = useTrackAnalytics();
   const toaster = useToasterOptional();
   const ThreadListRow = useSlot('ThreadListRow');
   const id = useAuiState(s => s.threadListItem.id);
@@ -222,6 +226,13 @@ function ThreadListItemRow({
         agentName={agentName}
         lastMessageAt={lastMessageAt}
         onSelect={() => {
+          track(
+            AnalyticsEvents.Session.SELECTED,
+            withSessionProps(
+              { is_mutable: threadListItemIsMutable(custom) },
+              { sessionId: remoteId, agentName },
+            ),
+          );
           onThreadOpen?.();
           shell?.setSettingsOpen(false);
           shell?.setLibraryOpen(false);
@@ -394,11 +405,13 @@ function RecentChatsSection({
 export function ThreadListContainer({ onThreadOpen, variant = 'default' }: ThreadListContainerProps = {}) {
   const aui = useAui();
   const server = useOptionalServer();
+  const track = useTrackAnalytics();
   const isLoading = useAuiState(s => s.threads.isLoading);
   const isLoadingMore = useAuiState(s => s.threads.isLoadingMore);
   const hasMore = useAuiState(s => s.threads.hasMore);
   const threadIds = useAuiState(s => s.threads.threadIds);
   const threadItems = useAuiState(s => s.threads.threadItems);
+  const activeSessionId = useAuiState(s => s.threadListItem.remoteId);
   const shell = useOptionalShellMode();
 
   const ThreadListShell = useSlot('ThreadListShell');
@@ -468,6 +481,18 @@ export function ThreadListContainer({ onThreadOpen, variant = 'default' }: Threa
   }, [hasMore, isIdle, isLoading, isLoadingMore, threadIds.length]);
 
   const handleNewChat = () => {
+    track(
+      AnalyticsEvents.Session.NEW,
+      withSessionProps(
+        { is_composer_enabled: shell?.isComposerEnabled === true },
+        {
+          sessionId: activeSessionId,
+          ...(shell?.mode.status === 'active'
+            ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName }
+            : {}),
+        },
+      ),
+    );
     onThreadOpen?.();
     shell?.setLibraryOpen(false);
     shell?.setSessionsOpen(false);
