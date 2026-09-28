@@ -67,6 +67,7 @@ async function validateManifest<TTransaction>({
   sandboxEnvironmentStore,
   webSearchProviderStore,
   tenant_id,
+  created_by_subject_id,
 }: {
   spec: AgentSpec;
   modelProviderStore: IModelProviderStore<TTransaction>;
@@ -76,10 +77,12 @@ async function validateManifest<TTransaction>({
   sandboxEnvironmentStore: ISandboxEnvironmentStore<TTransaction>;
   webSearchProviderStore: IWebSearchProviderStore<TTransaction>;
   tenant_id: string;
+  created_by_subject_id: string;
 }): Promise<AgentSpec> {
   await validateAgentSpec({
     spec,
     tenant_id,
+    created_by_subject_id,
     modelProviderStore,
     mcpServerStore,
     skillStore,
@@ -125,6 +128,7 @@ export function createAgentsRouter<TTransaction>(deps: AgentsRouterDeps<TTransac
       sandboxEnvironmentStore: deps.sandboxEnvironmentStore,
       webSearchProviderStore: deps.resolveWebSearchProviderStore(c),
       tenant_id: requestContext.tenant_id,
+      created_by_subject_id: requestContext.subject.id,
     });
     try {
       const record = await deps.resolveAgentStore(c).createAgent({
@@ -231,6 +235,7 @@ export function createAgentsRouter<TTransaction>(deps: AgentsRouterDeps<TTransac
       sandboxEnvironmentStore: deps.sandboxEnvironmentStore,
       webSearchProviderStore: deps.resolveWebSearchProviderStore(c),
       tenant_id: requestContext.tenant_id,
+      created_by_subject_id: requestContext.subject.id,
     });
     const record = await deps.resolveAgentStore(c).updateAgent({
       tenant_id: requestContext.tenant_id,

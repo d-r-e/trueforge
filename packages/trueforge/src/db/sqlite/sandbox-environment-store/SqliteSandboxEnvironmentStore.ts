@@ -188,6 +188,7 @@ export class SqliteSandboxEnvironmentStore implements ISandboxEnvironmentStore<T
     const query = activeVersionJoin(db)
       .where('env.tenant_id', '=', input.tenant_id)
       .where('env.lifecycle_stage', '=', 'active')
+      .where(sql`json_extract(env.created_by_subject, '$.subject_id')`, '=', input.created_by_subject_id)
       .orderBy('env.name');
     if (!input.limit) {
       const rows = await query.execute();
@@ -211,6 +212,7 @@ export class SqliteSandboxEnvironmentStore implements ISandboxEnvironmentStore<T
       .where('env.tenant_id', '=', input.tenant_id)
       .where('env.name', '=', input.name)
       .where('env.lifecycle_stage', '=', 'active')
+      .where(sql`json_extract(env.created_by_subject, '$.subject_id')`, '=', input.created_by_subject_id)
       .executeTakeFirst();
     return row ? toWithVersion(row) : undefined;
   }
@@ -342,6 +344,7 @@ export class SqliteSandboxEnvironmentStore implements ISandboxEnvironmentStore<T
       .where('tenant_id', '=', input.tenant_id)
       .where('name', '=', input.name)
       .where('lifecycle_stage', '=', 'active')
+      .where(sql`json_extract(created_by_subject, '$.subject_id')`, '=', input.created_by_subject_id)
       .execute();
   }
 

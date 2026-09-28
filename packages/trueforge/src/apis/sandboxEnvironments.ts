@@ -125,10 +125,15 @@ export function createSandboxEnvironmentsRouter<TTransaction>(
   const { sandboxEnvironmentStore: store, resolveAgentStore, withTransaction, resolveRequestContext, logger } = deps;
 
   router.get('/', async c => {
-    const { tenant_id } = resolveRequestContext(c);
+    const { tenant_id, subject } = resolveRequestContext(c);
     const { limit, page_token } = parseListQuery(c);
     try {
-      const listed = await store.listEnvironments({ tenant_id, limit, page_token });
+      const listed = await store.listEnvironments({
+        tenant_id,
+        created_by_subject_id: subject.id,
+        limit,
+        page_token,
+      });
       return c.json({ data: listed.data.map(toSandboxEnvironment), pagination: listed.pagination });
     } catch (error) {
       if (error instanceof InvalidPageTokenError) {
@@ -139,9 +144,13 @@ export function createSandboxEnvironmentsRouter<TTransaction>(
   });
 
   router.get('/:name', async c => {
-    const { tenant_id } = resolveRequestContext(c);
+    const { tenant_id, subject } = resolveRequestContext(c);
     const name = c.req.param('name');
-    const loaded = await store.getEnvironment({ tenant_id, name });
+    const loaded = await store.getEnvironment({
+      tenant_id,
+      name,
+      created_by_subject_id: subject.id,
+    });
     if (!loaded) {
       return c.json({ error: { message: `Sandbox environment not found: ${name}` } }, 404);
     }
@@ -226,7 +235,11 @@ export function createSandboxEnvironmentsRouter<TTransaction>(
       return c.json({ error: { message: 'No sandbox provider configured' } }, 422);
     }
 
-    const existing = await store.getEnvironment({ tenant_id: requestContext.tenant_id, name });
+    const existing = await store.getEnvironment({
+      tenant_id: requestContext.tenant_id,
+      name,
+      created_by_subject_id: requestContext.subject.id,
+    });
     if (!existing) {
       return c.json({ error: { message: `Sandbox environment not found: ${name}` } }, 404);
     }
@@ -284,8 +297,16 @@ export function createSandboxEnvironmentsRouter<TTransaction>(
   });
 
   router.delete('/:name', async c => {
-    const { tenant_id } = resolveRequestContext(c);
+    const { tenant_id, subject } = resolveRequestContext(c);
     const name = c.req.param('name');
+    const existing = await store.getEnvironment({
+      tenant_id,
+      name,
+      created_by_subject_id: subject.id,
+    });
+    if (!existing) {
+      return c.json({ error: { message: `Sandbox environment not found: ${name}` } }, 404);
+    }
     const agentNames = await resolveAgentStore(c).listAgentNamesUsingSandboxEnvironment({
       tenant_id,
       environment_name: name,
@@ -302,7 +323,11 @@ export function createSandboxEnvironmentsRouter<TTransaction>(
         409,
       );
     }
-    await store.deleteEnvironment({ tenant_id, name });
+    await store.deleteEnvironment({
+      tenant_id,
+      name,
+      created_by_subject_id: subject.id,
+    });
     return c.json({});
   });
 

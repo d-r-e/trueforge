@@ -54,6 +54,8 @@ export function parseStoredSandboxEnvironmentManifest(manifest: unknown): Stored
 
 export interface ListSandboxEnvironmentsInput {
   tenant_id: string;
+  /** Only environments created by this subject. */
+  created_by_subject_id: string;
   limit: number | undefined;
   page_token: string | undefined;
 }
@@ -61,6 +63,8 @@ export interface ListSandboxEnvironmentsInput {
 export interface GetSandboxEnvironmentInput {
   tenant_id: string;
   name: string;
+  /** Only return the environment if created by this subject. */
+  created_by_subject_id: string;
 }
 
 /** Version columns written on create/update (store fills environment_id). */
@@ -100,6 +104,8 @@ export interface MarkSandboxEnvironmentVersionFailedInput {
 export interface DeleteSandboxEnvironmentInput {
   tenant_id: string;
   name: string;
+  /** Soft-delete only if created by this subject. */
+  created_by_subject_id: string;
 }
 
 /** Partial unique `(tenant_id, name) WHERE lifecycle_stage = 'active'` violation. */

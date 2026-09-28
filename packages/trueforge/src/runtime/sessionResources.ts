@@ -214,6 +214,7 @@ export function buildTurnSandbox(input: {
 export async function validateAgentSpec({
   spec,
   tenant_id,
+  created_by_subject_id,
   modelProviderStore,
   mcpServerStore,
   skillStore,
@@ -223,6 +224,7 @@ export async function validateAgentSpec({
 }: {
   spec: AgentSpec;
   tenant_id: string;
+  created_by_subject_id: string;
   modelProviderStore: IModelProviderStore;
   mcpServerStore: IMcpServerStore;
   skillStore: ISkillStore;
@@ -285,10 +287,11 @@ export async function validateAgentSpec({
   }
 
   const environmentName = spec.config.sandbox.environment;
-  if (environmentName !== undefined) {
+  if (environmentName) {
     const environment = await sandboxEnvironmentStore.getEnvironment({
       tenant_id,
       name: environmentName,
+      created_by_subject_id,
     });
     if (environment === undefined) {
       throw new HTTPException(422, {

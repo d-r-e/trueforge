@@ -4,6 +4,7 @@ import {
   paginateOffsetRows,
 } from '@truefoundry/trueforge-core/agent-session/store/OffsetPageToken';
 import type { Kysely, Selectable, Transaction } from 'kysely';
+import { sql } from 'kysely';
 import { NameSchema } from '../../../schemas/common';
 import { SandboxEnvironmentVersionInternalMetadataSchema } from '../../../schemas/sandboxEnvironment';
 import { newId } from '../../../utils/id';
@@ -127,6 +128,7 @@ export class PostgresSandboxEnvironmentStore implements ISandboxEnvironmentStore
     const query = activeVersionJoin(db)
       .where('env.tenant_id', '=', input.tenant_id)
       .where('env.lifecycle_stage', '=', 'active')
+      .where(sql`env.created_by_subject->>'subject_id'`, '=', input.created_by_subject_id)
       .orderBy('env.name');
     if (!input.limit) {
       const rows = await query.execute();
@@ -150,6 +152,7 @@ export class PostgresSandboxEnvironmentStore implements ISandboxEnvironmentStore
       .where('env.tenant_id', '=', input.tenant_id)
       .where('env.name', '=', input.name)
       .where('env.lifecycle_stage', '=', 'active')
+      .where(sql`env.created_by_subject->>'subject_id'`, '=', input.created_by_subject_id)
       .executeTakeFirst();
     return row ? toWithVersion(row) : undefined;
   }
@@ -245,6 +248,7 @@ export class PostgresSandboxEnvironmentStore implements ISandboxEnvironmentStore
       .where('tenant_id', '=', input.tenant_id)
       .where('name', '=', input.name)
       .where('lifecycle_stage', '=', 'active')
+      .where(sql`created_by_subject->>'subject_id'`, '=', input.created_by_subject_id)
       .execute();
   }
 

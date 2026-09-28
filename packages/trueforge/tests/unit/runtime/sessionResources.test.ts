@@ -102,6 +102,7 @@ describe('validateAgentSpec', () => {
           instructions: 'test',
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -119,6 +120,7 @@ describe('validateAgentSpec', () => {
           instructions: 'test',
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -136,6 +138,7 @@ describe('validateAgentSpec', () => {
           instructions: 'test',
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -153,6 +156,7 @@ describe('validateAgentSpec', () => {
           instructions: 'test',
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -171,6 +175,7 @@ describe('validateAgentSpec', () => {
           mcp_servers: [{ name: 'missing-mcp' }],
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -189,6 +194,7 @@ describe('validateAgentSpec', () => {
           skills: [{ name: 'missing-skill' }],
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -207,6 +213,7 @@ describe('validateAgentSpec', () => {
           config: { sandbox: { enabled: true } },
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -225,6 +232,7 @@ describe('validateAgentSpec', () => {
           config: { web_search: { enabled: true } },
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -244,6 +252,7 @@ describe('validateAgentSpec', () => {
           config: { web_search: { enabled: true } },
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).resolves.toBeUndefined();
@@ -271,6 +280,7 @@ describe('validateAgentSpec', () => {
           skills: [{ name: 'demo' }],
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
@@ -304,6 +314,7 @@ describe('validateAgentSpec', () => {
           config: { sandbox: { enabled: true } },
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).resolves.toBeUndefined();
@@ -325,6 +336,7 @@ describe('validateAgentSpec', () => {
           config: { sandbox: { enabled: true } },
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).resolves.toBeUndefined();
@@ -380,6 +392,7 @@ describe('validateAgentSpec', () => {
           skills: [{ name: fqn }],
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
         skillStore,
       }),
@@ -406,6 +419,7 @@ describe('validateAgentSpec', () => {
           skills: [{ name: 'agent-skill:acme/team-a/echo:3', preload: false }],
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).resolves.toBeUndefined();
@@ -442,6 +456,7 @@ describe('validateAgentSpec', () => {
           skills: [{ name: 'echo', preload: true }],
         }),
         tenant_id: 'default',
+        created_by_subject_id: 'test-subject',
         ...stores,
       }),
     ).rejects.toMatchObject({
