@@ -183,6 +183,7 @@ function ScheduleFormDrawerBody({
           timezone: form.timezone,
           status: 'paused',
         });
+        track(AnalyticsEvents.Schedule.EDITED, { schedule_id: saved.id, agent_id: saved.agentId });
         onSaved?.();
         enterTestView(saved);
         toaster?.showSuccess({

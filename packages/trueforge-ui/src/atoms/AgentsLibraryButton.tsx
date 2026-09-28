@@ -67,7 +67,7 @@ export function AgentsLibraryButton({ className, compact = false }: AgentsLibrar
           ),
         })}
         onClick={() => {
-          track(AnalyticsEvents.Library.OPENED);
+          if (!libraryOpen) track(AnalyticsEvents.Library.OPENED);
           shell?.setLibraryOpen(true);
         }}
       >

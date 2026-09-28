@@ -61,12 +61,14 @@ function ThreadListItemActionsMenu({
   canDelete,
   deleteDisabled,
   onRename,
+  onDelete,
 }: {
   canRename: boolean;
   renameDisabled: boolean;
   canDelete: boolean;
   deleteDisabled: boolean;
   onRename: () => void;
+  onDelete: () => void;
 }) {
   const PermissionGuard = useSlot('PermissionGuard');
   const compact = useCompactLayout();
@@ -108,7 +110,9 @@ function ThreadListItemActionsMenu({
       <ThreadListItemPrimitive.Delete
         className={deleteItemClass}
         onClick={() => {
-          if (!deleteDisabled) setSheetOpen(false);
+          if (deleteDisabled) return;
+          setSheetOpen(false);
+          onDelete();
         }}
       >
         <Icon name="trash" className="size-3.5" />
@@ -278,6 +282,12 @@ function ThreadListItemRow({
               canDelete={showDelete}
               deleteDisabled={deleteDisabled}
               onRename={() => setRenameOpen(true)}
+              onDelete={() => {
+                track(
+                  AnalyticsEvents.Session.DELETED,
+                  withSessionProps(undefined, { sessionId: remoteId, agentName }),
+                );
+              }}
             />
           ) : undefined
         }

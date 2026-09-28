@@ -444,7 +444,6 @@ export function AgentsLibrary({ onSelectAgent }: AgentsLibraryProps) {
 
   const handleTry = (agent: AgentLibraryEntry) => {
     track(AnalyticsEvents.Library.AGENT_TRIED, { agent_id: libraryAgentId(agent), agent_name: agent.name });
-    closeLibrary();
     onSelectAgent?.(agent.name);
     shell.selectLibraryAgent({
       isMutable: false,
@@ -455,7 +454,6 @@ export function AgentsLibrary({ onSelectAgent }: AgentsLibraryProps) {
 
   const handleEdit = (agent: AgentLibraryEntry, agentSpec: AgentSpec) => {
     track(AnalyticsEvents.Library.AGENT_EDITED, { agent_id: libraryAgentId(agent), agent_name: agent.name });
-    closeLibrary();
     onSelectAgent?.(agent.name);
     shell.selectLibraryAgent({
       isMutable: true,

@@ -163,6 +163,7 @@ const ModelSettings = () => {
       },
       err => setKeyError(getErrorMessage(err, 'Request failed')),
     );
+    track(AnalyticsEvents.Settings.MODEL_PROVIDER_SAVED, { provider_name: entry.name, mode: 'create' });
   };
 
   const handleReplaceKey = async (provider: ModelProviderBase, draft: ModelProviderKeyDraft) => {
