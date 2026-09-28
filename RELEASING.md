@@ -176,10 +176,7 @@ creates uid 10001 at build time.
 The image job calls the private `truefoundry/workflows`
 `.github/workflows/build.yml@main`, which authenticates to the private registry
 for the bases (`ecr_iam_role_arn` from `AWS_DEVTEST_ECR_IAM_ROLE_ARN`) and pushes
-the result to JFrog. The public build workflow cannot log in there. `resolve-image`
-fails early if that role secret is missing. Calling a private reusable workflow
-requires `truefoundry/workflows` to allow access from this repository in its
-Actions settings.
+the result to JFrog. `resolve-image` fails early if that role secret is missing.
 
 The image is the workspace at the package-publish commit. Chart `appVersion` is
 that commit's `packages/trueforge/package.json` version. Image tags use the
