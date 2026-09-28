@@ -126,7 +126,7 @@ export function AttachmentCard({
             variant: 'ghost',
             size: 'icon',
             className:
-              'aui-attachment-tile-remove absolute inset-e-0.5 top-0.5 z-10 size-4 rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/70 hover:text-white',
+              'aui-attachment-tile-remove absolute inset-e-0.5 top-0.5 z-10 size-4 rounded-full bg-black/50 text-white transition-opacity hover:bg-black/70 hover:text-white md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100',
           })}
           onClick={e => {
             e.stopPropagation();

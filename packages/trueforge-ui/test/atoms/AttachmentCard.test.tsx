@@ -45,6 +45,8 @@ describe('AttachmentCard', () => {
     const removeButton = screen.getByRole('button', { name: 'Remove file' });
     expect(removeButton).toHaveAttribute('type', 'button');
     expect(removeButton).toHaveAttribute('title', 'Remove file');
+    expect(removeButton.className).toMatch(/md:opacity-0/);
+    expect(removeButton.className).not.toMatch(/(?:^|\s)opacity-0(?:\s|$)/);
     fireEvent.click(removeButton);
     expect(onRemove).toHaveBeenCalledOnce();
   });
