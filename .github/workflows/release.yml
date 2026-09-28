@@ -291,18 +291,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # Fail here rather than deep inside the image build, where a missing role
-      # only surfaces as a base-image pull denial.
-      - name: Require devtest ECR role
-        env:
-          ECR_ROLE_ARN: ${{ secrets.AWS_DEVTEST_ECR_IAM_ROLE_ARN }}
-        run: |
-          set -euo pipefail
-          if [ -z "$ECR_ROLE_ARN" ]; then
-            echo "Set AWS_DEVTEST_ECR_IAM_ROLE_ARN so the release build can pull the hardened bases." >&2
-            exit 1
-          fi
-
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
