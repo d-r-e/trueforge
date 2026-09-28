@@ -121,19 +121,25 @@ COPY --from=frontend-builder /app/packages/frontend/dist ./packages/trueforge/di
 
 WORKDIR /app/packages/trueforge
 
-# Chart pods run as uid 10001. Debian has groupadd; the hardened base has BusyBox.
+# Chart pods run as uid 10001. Debian has groupadd; the hardened base has
+# BusyBox addgroup. Fail loudly if a future base has neither, rather than on a
+# bare "not found".
 RUN if [ -x /usr/sbin/groupadd ]; then \
       groupadd --gid 10001 trueforge \
       && useradd --uid 10001 --gid trueforge trueforge; \
-    else \
+    elif command -v addgroup >/dev/null 2>&1 && command -v adduser >/dev/null 2>&1; then \
       addgroup -g 10001 trueforge \
       && adduser -D -H -u 10001 -G trueforge trueforge; \
+    else \
+      echo "base image has neither groupadd nor addgroup; cannot create uid 10001" >&2; \
+      exit 1; \
     fi
 
 EXPOSE 8790
 
 USER 10001:10001
-# The hardened base sets ENTRYPOINT to the node binary. Pin the same command on
-# both bases so CMD is not passed to that binary as a script name.
-ENTRYPOINT ["node"]
-CMD ["dist/main.js"]
+# The hardened base sets ENTRYPOINT to the node binary, the Docker Hub base to
+# docker-entrypoint.sh. Clear it so CMD is the whole command on both, and a
+# `command:` override stays a command rather than arguments to node.
+ENTRYPOINT []
+CMD ["node", "dist/main.js"]
