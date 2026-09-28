@@ -210,6 +210,7 @@ function ThreadListItemRow({
     setRenameSaving(true);
     try {
       await aui.threadListItem().rename(trimmed);
+      track(AnalyticsEvents.Session.RENAMED, withSessionProps(undefined, { sessionId: remoteId, agentName }));
       setRenameOpen(false);
     } catch (caught) {
       toaster?.showError(caught);

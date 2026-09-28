@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useTrackAnalytics } from '@/analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '@/analytics/events.js';
 import { Spinner } from '@/atoms/primitives/Spinner.js';
 import { Button } from '../../atoms/primitives/Button.js';
 import { Tooltip } from '../../atoms/primitives/Tooltip.js';
@@ -63,6 +65,7 @@ const statusPresentation = (status: SandboxSnapshotSyncStatus['status']): { labe
 const SandboxSettings = () => {
   const { sandboxCatalog } = useCatalogServer();
   const toaster = useToasterOptional();
+  const track = useTrackAnalytics();
 
   const [providers, setProviders] = useState<SandboxProviderListEntry[]>([]);
   const [catalog, setCatalog] = useState<SandboxProviderCatalogEntry[]>([]);
@@ -186,6 +189,7 @@ const SandboxSettings = () => {
     setCreateEntry(null);
     setTimeout(() => {
       toaster?.showSuccess({ title: `${createEntry.name} configured` });
+      track(AnalyticsEvents.Settings.SANDBOX_PROVIDER_SAVED, { provider_name: createEntry.name, mode: 'create' });
     }, 0);
   };
 
@@ -202,6 +206,7 @@ const SandboxSettings = () => {
     setUpdateProvider(null);
     setTimeout(() => {
       toaster?.showSuccess({ title: `${updateProvider.name} updated` });
+      track(AnalyticsEvents.Settings.SANDBOX_PROVIDER_SAVED, { provider_name: updateProvider.name, mode: 'update' });
     }, 0);
   };
 
@@ -220,6 +225,7 @@ const SandboxSettings = () => {
     if (!deleteSandboxProvider) return;
     void runMutation(async () => {
       await deleteSandboxProvider({ id: provider.id });
+      track(AnalyticsEvents.Settings.SANDBOX_PROVIDER_DELETED, { provider_name: provider.name });
     }).catch(() => {});
   };
 
