@@ -177,17 +177,17 @@ const server = createTrueForgeServer({
 />
 ```
 
-| Prop               | Type                       | Required | Description                                                                                                        |
-| ------------------ | -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `server`           | `TrueForgeServerConfig`    | ✅       | Built-in `trueforge` config **or** a ready `AgentUIServer`.                                                        |
-| `layout`           | `LayoutProp`               | ✅       | Built-in layout string **or** a custom React component.                                                            |
-| `agentConfig`      | `AgentConfig`              | —        | Shell mode: SingleAgent / AgentLibrary / AgentComposer / AgentLibraryWithComposer. Defaults to library + composer. |
-| `theme`            | `ThemeConfig`              | —        | Preset, mode, tokens, brand, icons, **content `classNames`** (see [Theming](#theming)).                            |
-| `overrides`        | `SlotOverrides`            | —        | Map of slot overrides (see [Overriding components](#overriding-components)).                                       |
-| `className`        | `string`                   | —        | Applied to the layout root.                                                                                        |
-| `initialSessionId` | `string`                   | —        | Resume a specific session.                                                                                         |
-| `onError`          | `(error: unknown) => void` | —        | Host error hook (runtime + server init).                                                                           |
-| `analytics`        | `{ track: TrackAnalytics }` | —       | Host product-analytics sink; SDK never ships a vendor.                                                             |
+| Prop               | Type                        | Required | Description                                                                                                        |
+| ------------------ | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `server`           | `TrueForgeServerConfig`     | ✅       | Built-in `trueforge` config **or** a ready `AgentUIServer`.                                                        |
+| `layout`           | `LayoutProp`                | ✅       | Built-in layout string **or** a custom React component.                                                            |
+| `agentConfig`      | `AgentConfig`               | —        | Shell mode: SingleAgent / AgentLibrary / AgentComposer / AgentLibraryWithComposer. Defaults to library + composer. |
+| `theme`            | `ThemeConfig`               | —        | Preset, mode, tokens, brand, icons, **content `classNames`** (see [Theming](#theming)).                            |
+| `overrides`        | `SlotOverrides`             | —        | Map of slot overrides (see [Overriding components](#overriding-components)).                                       |
+| `className`        | `string`                    | —        | Applied to the layout root.                                                                                        |
+| `initialSessionId` | `string`                    | —        | Resume a specific session.                                                                                         |
+| `onError`          | `(error: unknown) => void`  | —        | Host error hook (runtime + server init).                                                                           |
+| `analytics`        | `{ track: TrackAnalytics }` | —        | Host product-analytics sink; SDK never ships a vendor.                                                             |
 
 ```tsx
 <TrueForgeUI

@@ -9,8 +9,8 @@ import {
   type Question,
 } from '../atoms/adapters/AskUserPromptAdapter.js';
 
-import { AnalyticsEvents } from '../analytics/events.js';
 import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../analytics/events.js';
 import { useSlot } from '../theme/SlotsProvider.js';
 
 const EMPTY_ANSWER: AskUserAnswerDraft = { radioValue: '', custom: '' };

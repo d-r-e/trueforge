@@ -11,8 +11,8 @@ import {
 import { useTrueForgeRespondToToolApproval } from '@truefoundry/trueforge-assistant-ui-runtime';
 import { useCallback, useState } from 'react';
 
-import { AnalyticsEvents } from '../analytics/events.js';
 import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../analytics/events.js';
 import { useSlot } from '../theme/SlotsProvider.js';
 import {
   ASK_USER_TOOL_NAME,
@@ -99,8 +99,7 @@ function ToolApprovalSlot({ part }: { part: ToolCallMessagePartProps }) {
   const onSelectOption = (optionId: string, reason?: string) => {
     const options = buildApprovalOptions(part.approval?.options);
     const option = options.find(o => o.id === optionId);
-    const approved =
-      optionId === '__allow' ? true : optionId === '__deny' ? false : option?.isAllow;
+    const approved = optionId === '__allow' ? true : optionId === '__deny' ? false : option?.isAllow;
     track(AnalyticsEvents.Tool.APPROVAL_RESOLVED, {
       tool_name: part.toolName,
       option_id: optionId,

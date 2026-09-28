@@ -4,8 +4,8 @@ import { useActionBarCopy, useMessageError, useThreadIsRunning, type PartState }
 import { MessagePrimitive, useAuiState, type EnrichedPartState, type GroupByContext } from '@assistant-ui/react';
 import { useTrueForgeResumeUnavailable } from '@truefoundry/trueforge-assistant-ui-runtime';
 
-import { AnalyticsEvents } from '../analytics/events.js';
 import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../analytics/events.js';
 import { withSessionProps } from '../analytics/sessionProps.js';
 import { useOptionalShellMode } from '../server/ShellModeContext.js';
 import { useSlot } from '../theme/SlotsProvider.js';
@@ -49,17 +49,12 @@ export function AssistantMessageContainer() {
   const track = useTrackAnalytics();
   const shell = useOptionalShellMode();
   const shellAgent =
-    shell?.mode.status === 'active'
-      ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName }
-      : {};
+    shell?.mode.status === 'active' ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName } : {};
   const { copy, isCopied } = useActionBarCopy({
     copyToClipboard: text => navigator.clipboard.writeText(text),
   });
   const onCopy = () => {
-    track(
-      AnalyticsEvents.Message.COPIED,
-      withSessionProps({ role: 'assistant' }, { sessionId, ...shellAgent }),
-    );
+    track(AnalyticsEvents.Message.COPIED, withSessionProps({ role: 'assistant' }, { sessionId, ...shellAgent }));
     copy();
   };
 

@@ -3,8 +3,8 @@
 import { useActionBarCopy, useActionBarEdit, useThreadIsRunning } from '@assistant-ui/core/react';
 import { MessagePrimitive, useAui, useAuiState } from '@assistant-ui/react';
 
-import { AnalyticsEvents } from '../analytics/events.js';
 import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../analytics/events.js';
 import { withSessionProps } from '../analytics/sessionProps.js';
 import { useActiveSessionCanManage } from '../hooks/useResourcePermissions.js';
 import { useOptionalShellMode } from '../server/ShellModeContext.js';
@@ -32,9 +32,7 @@ export function UserMessageContainer() {
     copyToClipboard: value => navigator.clipboard.writeText(value),
   });
   const shellAgent =
-    shell?.mode.status === 'active'
-      ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName }
-      : {};
+    shell?.mode.status === 'active' ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName } : {};
   const sessionProps = { sessionId, ...shellAgent };
 
   return (

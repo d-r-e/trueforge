@@ -68,9 +68,7 @@ function ComposerBody({
   const disabled = isBusy || forceDisabled || !canManageSession;
   const canSubmit = canSubmitComposer({ disabled, hasText, hasAttachments, requiresModel, hasModel });
   const shellAgent =
-    shell?.mode.status === 'active'
-      ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName }
-      : {};
+    shell?.mode.status === 'active' ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName } : {};
   const submit = () => {
     if (!canSubmit) return;
     track(
@@ -149,10 +147,7 @@ function ComposerBody({
             onCancel={
               canManageSession
                 ? () => {
-                    track(
-                      AnalyticsEvents.Message.CANCELLED,
-                      withSessionProps(undefined, { sessionId, ...shellAgent }),
-                    );
+                    track(AnalyticsEvents.Message.CANCELLED, withSessionProps(undefined, { sessionId, ...shellAgent }));
                     resetBusy();
                     void cancel();
                   }

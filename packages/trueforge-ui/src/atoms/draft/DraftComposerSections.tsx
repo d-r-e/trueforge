@@ -1,7 +1,7 @@
 'use client';
 
-import { AnalyticsEvents } from '../../analytics/events.js';
 import { useTrackAnalytics } from '../../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../../analytics/events.js';
 import { withSessionProps } from '../../analytics/sessionProps.js';
 import { Icon } from '../../icons/Icon.js';
 import { shellIsCreateAgent, useOptionalShellMode } from '../../server/ShellModeContext.js';

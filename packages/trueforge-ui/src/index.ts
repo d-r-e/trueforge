@@ -137,6 +137,14 @@ export type { UserMessageEditProps } from './atoms/UserMessageEdit.js';
 export { WelcomeScreen } from './atoms/WelcomeScreen.js';
 export type { WelcomeScreenProps } from './atoms/WelcomeScreen.js';
 
+export {
+  AnalyticsEvents,
+  AnalyticsProvider,
+  useAnalyticsOptional,
+  useTrackAnalytics,
+  withSessionProps,
+} from './analytics/index.js';
+export type { AnalyticsConfig, AnalyticsEventProps, TrackAnalytics } from './analytics/index.js';
 export { AgentStepsCard } from './atoms/adapters/AgentStepsCardAdapter.js';
 export type { AgentStepsCardProps } from './atoms/adapters/AgentStepsCardAdapter.js';
 export type {
@@ -220,14 +228,6 @@ export { ThreadContainer } from './containers/ThreadContainer.js';
 export type { ThreadContainerProps } from './containers/ThreadContainer.js';
 export { ThreadListContainer } from './containers/ThreadListContainer.js';
 export type { ThreadListContainerProps } from './containers/ThreadListContainer.js';
-export {
-  AnalyticsEvents,
-  AnalyticsProvider,
-  useAnalyticsOptional,
-  useTrackAnalytics,
-  withSessionProps,
-} from './analytics/index.js';
-export type { AnalyticsConfig, AnalyticsEventProps, TrackAnalytics } from './analytics/index.js';
 export { ToasterProvider, useToaster, useToasterOptional } from './containers/ToasterContainer.js';
 export { ToolApprovalContainer } from './containers/ToolApprovalContainer.js';
 export type { ToolApprovalOption } from './containers/ToolApprovalContainer.js';

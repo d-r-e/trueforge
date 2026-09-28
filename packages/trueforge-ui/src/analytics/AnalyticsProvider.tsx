@@ -10,13 +10,7 @@ const AnalyticsContext = createContext<TrackAnalytics | null>(null);
 
 const noopTrack: TrackAnalytics = () => {};
 
-export function AnalyticsProvider({
-  track,
-  children,
-}: {
-  track?: TrackAnalytics;
-  children: ReactNode;
-}) {
+export function AnalyticsProvider({ track, children }: { track?: TrackAnalytics; children: ReactNode }) {
   const stableTrack = useCallback<TrackAnalytics>(
     (eventName, data) => {
       track?.(eventName, data);

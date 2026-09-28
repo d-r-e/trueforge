@@ -2,8 +2,8 @@
 
 import type { ReactNode } from 'react';
 
-import { AnalyticsEvents } from '../analytics/events.js';
 import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../analytics/events.js';
 import { useShareSessionDialog, type SessionSharePermission } from '../hooks/useShareSessionDialog.js';
 import { Icon } from '../icons/Icon.js';
 import { auiInputClass } from './lib/inputClasses.js';

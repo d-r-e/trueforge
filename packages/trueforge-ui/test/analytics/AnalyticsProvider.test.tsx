@@ -3,11 +3,7 @@ import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  AnalyticsProvider,
-  useAnalyticsOptional,
-  useTrackAnalytics,
-} from '@/analytics/AnalyticsProvider.js';
+import { AnalyticsProvider, useAnalyticsOptional, useTrackAnalytics } from '@/analytics/AnalyticsProvider.js';
 import { AnalyticsEvents } from '@/analytics/events.js';
 import { withSessionProps } from '@/analytics/sessionProps.js';
 
@@ -49,8 +45,10 @@ describe('AnalyticsProvider', () => {
 
 describe('withSessionProps', () => {
   it('merges only defined session identity fields', () => {
-    expect(
-      withSessionProps({ has_text: true }, { sessionId: 's1', agentId: '', agentName: 'bot' }),
-    ).toEqual({ has_text: true, session_id: 's1', agent_name: 'bot' });
+    expect(withSessionProps({ has_text: true }, { sessionId: 's1', agentId: '', agentName: 'bot' })).toEqual({
+      has_text: true,
+      session_id: 's1',
+      agent_name: 'bot',
+    });
   });
 });

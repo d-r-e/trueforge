@@ -10,8 +10,8 @@ import {
 } from '@assistant-ui/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 
-import { AnalyticsEvents } from '../analytics/events.js';
 import { useTrackAnalytics } from '../analytics/AnalyticsProvider.js';
+import { AnalyticsEvents } from '../analytics/events.js';
 import { withSessionProps } from '../analytics/sessionProps.js';
 import { AgentHistoryFilterButton } from '../atoms/AgentHistoryFilterButton.js';
 import { auiButtonClass } from '../atoms/lib/buttonClasses.js';
@@ -228,10 +228,7 @@ function ThreadListItemRow({
         onSelect={() => {
           track(
             AnalyticsEvents.Session.SELECTED,
-            withSessionProps(
-              { is_mutable: threadListItemIsMutable(custom) },
-              { sessionId: remoteId, agentName },
-            ),
+            withSessionProps({ is_mutable: threadListItemIsMutable(custom) }, { sessionId: remoteId, agentName }),
           );
           onThreadOpen?.();
           shell?.setSettingsOpen(false);
@@ -487,9 +484,7 @@ export function ThreadListContainer({ onThreadOpen, variant = 'default' }: Threa
         { is_composer_enabled: shell?.isComposerEnabled === true },
         {
           sessionId: activeSessionId,
-          ...(shell?.mode.status === 'active'
-            ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName }
-            : {}),
+          ...(shell?.mode.status === 'active' ? { agentId: shell.mode.agentId, agentName: shell.mode.agentName } : {}),
         },
       ),
     );
