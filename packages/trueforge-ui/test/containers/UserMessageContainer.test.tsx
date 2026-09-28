@@ -96,7 +96,9 @@ describe('UserMessageContainer', () => {
             name: 'notes.txt',
             contentType: 'text/plain',
             status: { type: 'complete' },
-            content: [{ type: 'file', mimeType: 'text/plain', filename: 'notes.txt', data: 'data:text/plain;base64,eA==' }],
+            content: [
+              { type: 'file', mimeType: 'text/plain', filename: 'notes.txt', data: 'data:text/plain;base64,eA==' },
+            ],
           },
           {
             id: 'att-image',
