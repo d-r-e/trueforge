@@ -11,14 +11,15 @@
 # file builds on Railway Metal (which requires a hardcoded service id in mount ids).
 #
 # Base images are build args so a local or contributor build stays on the public
-# Docker Hub image. The release workflow overrides both with the Chainguard node
-# images mirrored into the devtest ECR (builder: node:24-dev, runtime: node:24).
+# Docker Hub image. The release workflow overrides both with the hardened node
+# images from the TrueFoundry private registry (builder: node:24-dev, runtime:
+# node:24).
 
 ARG BUILD_BASE_IMAGE=node:24-slim
 ARG RUNTIME_BASE_IMAGE=node:24-slim
 
 FROM ${BUILD_BASE_IMAGE} AS base
-# Chainguard images default to uid 65532. Package install must run as root.
+# The hardened bases default to uid 65532. Package install must run as root.
 # node:24-slim is already root.
 USER root
 ENV PNPM_HOME=/pnpm
@@ -89,7 +90,7 @@ RUN pnpm install --frozen-lockfile --offline --prod --filter @truefoundry/truefo
 
 # ---------------------------------------------------------------------------
 # runner: minimal image with prod node_modules + built artifacts.
-# Fresh FROM so a Chainguard runtime image does not keep the builder toolchain.
+# Fresh FROM so a hardened runtime base does not keep the builder toolchain.
 # The default matches the builder, so local builds stay on node:24-slim.
 # ---------------------------------------------------------------------------
 FROM ${RUNTIME_BASE_IMAGE} AS runner
@@ -120,7 +121,7 @@ COPY --from=frontend-builder /app/packages/frontend/dist ./packages/trueforge/di
 
 WORKDIR /app/packages/trueforge
 
-# Chart pods run as uid 10001. Debian has groupadd; Chainguard node has BusyBox.
+# Chart pods run as uid 10001. Debian has groupadd; the hardened base has BusyBox.
 RUN if [ -x /usr/sbin/groupadd ]; then \
       groupadd --gid 10001 trueforge \
       && useradd --uid 10001 --gid trueforge trueforge; \
@@ -132,7 +133,7 @@ RUN if [ -x /usr/sbin/groupadd ]; then \
 EXPOSE 8790
 
 USER 10001:10001
-# Chainguard node sets ENTRYPOINT to the node binary. Pin the same command on
+# The hardened base sets ENTRYPOINT to the node binary. Pin the same command on
 # both bases so CMD is not passed to that binary as a script name.
 ENTRYPOINT ["node"]
 CMD ["dist/main.js"]

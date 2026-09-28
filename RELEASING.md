@@ -159,23 +159,27 @@ manual chart-only (image already in the registry)
 
 `docker build` with no args uses public `node:24-slim` for both the builder and
 the runtime. Contributor CI and Railway do the same. [`release.yml`](.github/workflows/release.yml)
-is the only build that pulls the Chainguard images already mirrored into the
-devtest ECR (`helm-charts` `scripts/sync-images/images.yaml`) and passes:
+is the only build that pulls the hardened node bases mirrored into the
+TrueFoundry private registry (`helm-charts` `scripts/sync-images/images.yaml`)
+and passes:
 
 | Build arg            | Default when the variable is unset                                      |
 | -------------------- | ----------------------------------------------------------------------- |
 | `BUILD_BASE_IMAGE`   | `526077812922.dkr.ecr.us-east-1.amazonaws.com/tfy-internal/node:24-dev` |
 | `RUNTIME_BASE_IMAGE` | `526077812922.dkr.ecr.us-east-1.amazonaws.com/tfy-internal/node:24`     |
 
-Those tags are the mirror of `cgr.dev/truefoundry.com/node:24.18-dev` and
-`cgr.dev/truefoundry.com/node:24`. Repository variables
-`TRUEFORGE_CHAINGUARD_NODE_DEV_IMAGE` and `TRUEFORGE_CHAINGUARD_NODE_IMAGE`
-override them. Keep the runtime on the standard `node:24` mirror: the slim image
-has no shell, and the Dockerfile still creates uid 10001 at build time.
+Repository variables `TRUEFORGE_NODE_BUILD_BASE_IMAGE` and
+`TRUEFORGE_NODE_RUNTIME_BASE_IMAGE` override them. Keep the runtime on the
+standard `node:24` mirror: the slim image has no shell, and the Dockerfile still
+creates uid 10001 at build time.
 
-The public reusable build workflow can push to public ECR. It cannot log in to
-this private registry, so the image job assumes `AWS_DEVTEST_ECR_IAM_ROLE_ARN`
-itself and then pushes the result to JFrog.
+The image job calls the private `truefoundry/workflows`
+`.github/workflows/build.yml@main`, which authenticates to the private registry
+for the bases (`ecr_iam_role_arn` from `AWS_DEVTEST_ECR_IAM_ROLE_ARN`) and pushes
+the result to JFrog. The public build workflow cannot log in there. `resolve-image`
+fails early if that role secret is missing. Calling a private reusable workflow
+requires `truefoundry/workflows` to allow access from this repository in its
+Actions settings.
 
 The image is the workspace at the package-publish commit. Chart `appVersion` is
 that commit's `packages/trueforge/package.json` version. Image tags use the
