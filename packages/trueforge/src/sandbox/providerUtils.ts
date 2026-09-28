@@ -28,14 +28,6 @@ export function isDaytonaPermissionError(error: unknown): boolean {
 }
 
 /**
- * Daytona SDK client for a manifest's endpoint. The SDK falls back to Daytona Cloud when no
- * `apiUrl` is given, so a self-hosted control plane must be passed explicitly.
- */
-function newDaytonaClient({ apiKey, apiUrl }: { apiKey: string; apiUrl: string | undefined }): Daytona {
-  return apiUrl === undefined ? new Daytona({ apiKey }) : new Daytona({ apiKey, apiUrl });
-}
-
-/**
  * Builds the Daytona runtime provider for a stored Daytona manifest. No network I/O until a method is called.
  *
  * When `build_metadata` is present, pin both `sandboxImage` and `buildRef` to what was actually
@@ -56,7 +48,7 @@ export function toDaytonaSandboxProvider({
 }): DaytonaSandboxProvider {
   const { apiKey, apiUrl, ...settings } = toDaytonaSandboxProviderInput(manifest);
   return new DaytonaSandboxProvider({
-    client: newDaytonaClient({ apiKey, apiUrl }),
+    client: new Daytona({ apiKey, ...(apiUrl === undefined ? {} : { apiUrl }) }),
     apiKey,
     apiUrl,
     ...settings,

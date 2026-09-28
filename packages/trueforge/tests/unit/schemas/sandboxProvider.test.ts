@@ -61,8 +61,22 @@ describe('SandboxProviderManifestSchema api_url', () => {
     );
   });
 
-  it('rejects a relative path as api_url', () => {
-    expect(() => SandboxProviderManifestSchema.parse({ ...daytonaBase, api_url: '/api' })).toThrow();
+  it('normalizes a trailing slash before the SDK and snapshot POST use the URL', () => {
+    const manifest = SandboxProviderManifestSchema.parse({ ...daytonaBase, api_url: 'http://localhost:3000/api/' });
+    expect(toDaytonaSandboxProviderInput(manifest).apiUrl).toBe('http://localhost:3000/api');
+  });
+
+  it('rejects relative paths, non-HTTP schemes, queries and fragments', () => {
+    for (const api_url of [
+      '/api',
+      'ftp://localhost/api',
+      'http://localhost/api?x=1',
+      'http://localhost/api?',
+      'http://localhost/api#x',
+      'http://localhost/api#',
+    ]) {
+      expect(() => SandboxProviderManifestSchema.parse({ ...daytonaBase, api_url })).toThrow();
+    }
   });
 });
 

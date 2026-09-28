@@ -55,7 +55,7 @@ if (apiKey === undefined || apiKey === '') {
 const image = values.image;
 const name = values.name;
 const force = values.force;
-const apiUrl = process.env.DAYTONA_API_URL;
+const apiUrl = process.env.DAYTONA_API_URL?.replace(/\/+$/, '');
 
 console.log(`image=${image}`);
 console.log(`name=${name}`);
