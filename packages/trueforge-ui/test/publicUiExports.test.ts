@@ -189,7 +189,6 @@ const expectedRuntimeExports: Array<keyof typeof sdk> = [
   'useApprovalNav',
   'useAgentMetricsServer',
   'useAgentSessionsServer',
-  'useAnalyticsOptional',
   'useAui',
   'useAuiState',
   'useBrand',

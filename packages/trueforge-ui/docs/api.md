@@ -58,16 +58,16 @@ Custom servers remain permissive unless they provide the optional port.
 
 ## Compose
 
-| Export                                                           | Notes                           |
-| ---------------------------------------------------------------- | ------------------------------- |
-| `TrueForgeChatProvider`                                          | Named-agent runtime + toasts    |
-| `TrueForgeChatProviderProps`                                     | `client` XOR `apiKey`+`baseUrl` |
-| `Thread`                                                         | Full thread + composer          |
-| `ThreadContainer`, `ComposerContainer`, `ThreadListContainer`    | Building blocks                 |
-| `ToasterProvider`, `useToaster`, `useToasterOptional`            | Success and error toasts        |
-| `AnalyticsProvider`, `useTrackAnalytics`, `useAnalyticsOptional` | Host product-analytics sink     |
-| `AnalyticsEvents`, `AnalyticsConfig`, `TrackAnalytics`           | Event catalog + types           |
-| Other `*Container` exports                                       | Advanced message / tool wiring  |
+| Export                                                        | Notes                           |
+| ------------------------------------------------------------- | ------------------------------- |
+| `TrueForgeChatProvider`                                       | Named-agent runtime + toasts    |
+| `TrueForgeChatProviderProps`                                  | `client` XOR `apiKey`+`baseUrl` |
+| `Thread`                                                      | Full thread + composer          |
+| `ThreadContainer`, `ComposerContainer`, `ThreadListContainer` | Building blocks                 |
+| `ToasterProvider`, `useToaster`, `useToasterOptional`         | Success and error toasts        |
+| `AnalyticsProvider`, `useTrackAnalytics`                      | Host product-analytics sink     |
+| `AnalyticsEvents`, `AnalyticsConfig`, `TrackAnalytics`        | Event catalog + types           |
+| Other `*Container` exports                                    | Advanced message / tool wiring  |
 
 ## Slots / theme
 

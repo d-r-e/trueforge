@@ -28,9 +28,4 @@ export function useTrackAnalytics(): TrackAnalytics {
   return useContext(AnalyticsContext) ?? noopTrack;
 }
 
-/** Host track when an AnalyticsProvider supplied one; otherwise `null`. */
-export function useAnalyticsOptional(): TrackAnalytics | null {
-  return useContext(AnalyticsContext);
-}
-
 export type { AnalyticsEventProps, TrackAnalytics };

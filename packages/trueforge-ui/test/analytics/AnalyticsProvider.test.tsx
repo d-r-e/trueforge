@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AnalyticsProvider, useAnalyticsOptional, useTrackAnalytics } from '@/analytics/AnalyticsProvider.js';
+import { AnalyticsProvider, useTrackAnalytics } from '@/analytics/AnalyticsProvider.js';
 import { AnalyticsEvents } from '@/analytics/events.js';
 import { withSessionProps } from '@/analytics/sessionProps.js';
 
@@ -11,11 +11,6 @@ describe('AnalyticsProvider', () => {
   it('no-ops when no provider is mounted', () => {
     const { result } = renderHook(() => useTrackAnalytics());
     expect(() => result.current(AnalyticsEvents.Message.SENT)).not.toThrow();
-  });
-
-  it('useAnalyticsOptional returns null outside a provider', () => {
-    const { result } = renderHook(() => useAnalyticsOptional());
-    expect(result.current).toBeNull();
   });
 
   it('forwards event name and props to the host track sink', () => {
@@ -28,18 +23,6 @@ describe('AnalyticsProvider', () => {
     result.current(AnalyticsEvents.Message.SENT, { has_text: true });
 
     expect(track).toHaveBeenCalledWith(AnalyticsEvents.Message.SENT, { has_text: true });
-  });
-
-  it('useAnalyticsOptional returns the host track when provided', () => {
-    const track = vi.fn();
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <AnalyticsProvider track={track}>{children}</AnalyticsProvider>
-    );
-
-    const { result } = renderHook(() => useAnalyticsOptional(), { wrapper });
-    expect(result.current).toBeTypeOf('function');
-    result.current?.(AnalyticsEvents.Session.NEW);
-    expect(track).toHaveBeenCalledWith(AnalyticsEvents.Session.NEW, undefined);
   });
 });
 
