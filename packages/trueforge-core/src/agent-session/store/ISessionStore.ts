@@ -9,10 +9,15 @@ import type { CurrentContextUsage } from '../../core/runtime/contextUsage';
 import type { SandboxInfo } from '../../core/sandbox/Sandbox';
 import type { SessionRecord } from '../models/SessionRecord';
 import type { TurnRecord } from '../models/TurnRecord';
-import type { PersistedTurnEvent, SessionEventItem } from '../schemas/events';
+import type { PersistedTurnEvent, SessionEventItem, TurnUpdateEvent } from '../schemas/events';
 import type { TokenPagination } from '../schemas/pagination';
 import type { SessionMetadata } from '../schemas/session';
-import type { CancellationReason, TerminalTurnState, TurnInboundEventItem } from '../schemas/turn';
+import type {
+  CancellationReason,
+  NonTerminalTurnState,
+  TerminalTurnState,
+  TurnInboundEventItem,
+} from '../schemas/turn';
 
 /**
  * Caller-supplied fields for creating a session; the store owns timestamps and tip state.
@@ -158,12 +163,21 @@ export interface ListTurnsInput {
   page_token: string | undefined;
 }
 
-export interface UpdateTurnStateInput {
+interface TurnStateUpdateKeys {
   session_id: string;
   turn_id: string;
+}
+
+export interface UpdateTurnTerminalStateInput extends TurnStateUpdateKeys {
   state: TerminalTurnState;
-  /** Caller-built turn.done; written atomically with the state flip in the same tx. */
+  /** Caller-built turn.done; written atomically with the state flip. */
   turn_done_event: PersistedTurnEvent;
+}
+
+export interface UpdateTurnNonTerminalStateInput extends TurnStateUpdateKeys {
+  state: NonTerminalTurnState;
+  /** Caller-built turn.update; written atomically with the non-terminal state transition. */
+  turn_update_event: TurnUpdateEvent;
 }
 
 export interface AppendToEventsInput {
@@ -360,12 +374,14 @@ export interface ISessionStore<
     input: ListTurnsInput,
   ): Promise<{ data: TurnRecordWithoutSnapshot<TTurnCustom>[]; pagination: TokenPagination }>;
 
+  /** Atomically performs `running ↔ paused` and appends turn.update. */
+  updateTurnNonTerminalState(input: UpdateTurnNonTerminalStateInput): Promise<void>;
+
   /**
-   * First terminal write wins (`running` → done/cancelled/error); otherwise 409.
-   * Winning write also folds cost/duration into `session.metrics`. Missing → 404.
-   * Must use the same lock/CAS as other turn mutations.
+   * First terminal write wins (`running|paused → done|cancelled|error`) and
+   * atomically appends turn.done and folds cost/duration into session metrics.
    */
-  updateTurnState(input: UpdateTurnStateInput): Promise<void>;
+  updateTurnTerminalState(input: UpdateTurnTerminalStateInput): Promise<void>;
 
   /**
    * Durable event log for the turn. MUST include lifecycle rows: a

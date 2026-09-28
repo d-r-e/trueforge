@@ -1,6 +1,7 @@
 import type { SessionMetrics } from '@truefoundry/trueforge-core/agent-session';
 import type { TurnRecord, TurnSnapshot } from '@truefoundry/trueforge-core/agent-session/models/TurnRecord';
 import {
+  isNonTerminalTurnState,
   type TerminalTurnState,
   type TurnInputItem,
   type TurnState,
@@ -9,7 +10,8 @@ import { assertCreateTurnThreadDelta } from '@truefoundry/trueforge-core/agent-s
 import type {
   FreezeAndGetTurnInput,
   TurnRecordWithoutSnapshot,
-  UpdateTurnStateInput,
+  UpdateTurnNonTerminalStateInput,
+  UpdateTurnTerminalStateInput,
 } from '@truefoundry/trueforge-core/agent-session/store/ISessionStore';
 import {
   PreviousTurnRunningError,
@@ -705,7 +707,7 @@ export async function freezeAndGetTurn(db: Kysely<Database>, input: FreezeAndGet
       })
       .where('session_id', '=', input.session_id)
       .where('turn_id', '=', input.turn_id)
-      .where(sql<boolean>`state->>'status' = 'running'`)
+      .where(sql<boolean>`state->>'status' IN ('running', 'paused')`)
       .returning(['created_at'])
       .executeTakeFirst();
 
@@ -797,11 +799,62 @@ export async function listTurns(db: Kysely<Database>, input: ListTurnsInput): Pr
   };
 }
 
-/**
- * updateTurnState — conditional on state->>'status'='running'.
- * 0 rows → SELECT by PK → missing NotFound, present Conflict (first terminal write wins).
- */
-export async function updateTurnState(db: Kysely<Database>, input: UpdateTurnStateInput): Promise<void> {
+/** Atomically transitions running ↔ paused and appends turn.update. */
+export async function updateTurnNonTerminalState(
+  db: Kysely<Database>,
+  input: UpdateTurnNonTerminalStateInput,
+): Promise<void> {
+  await db.transaction().execute(async trx => {
+    const expectedSourceStatus = input.state.status === 'paused' ? 'running' : 'paused';
+    const result = await trx
+      .updateTable('turn')
+      .set({
+        state: jsonbBind(input.state),
+        updated_at: nowIso(),
+      })
+      .where('session_id', '=', input.session_id)
+      .where('turn_id', '=', input.turn_id)
+      .where(sql<boolean>`state->>'status' = ${expectedSourceStatus}`)
+      .returning('turn_id')
+      .executeTakeFirst();
+
+    if (result === undefined) {
+      const existing = await trx
+        .selectFrom('turn')
+        .select([jsonText<TurnState>(sql.ref('state')).as('state')])
+        .where('session_id', '=', input.session_id)
+        .where('turn_id', '=', input.turn_id)
+        .executeTakeFirst();
+
+      if (!existing) {
+        throw new TurnNotFoundError(input.turn_id);
+      }
+      if (isNonTerminalTurnState(existing.state)) {
+        throw new SessionStoreInvariantError(
+          `expected ${expectedSourceStatus} state for turn ${input.turn_id}, got ${existing.state.status}`,
+        );
+      }
+      throw new TurnNotRunningError(input.turn_id, terminalTurnState(existing.state, input.turn_id));
+    }
+
+    await trx
+      .insertInto('session_event')
+      .values({
+        session_id: input.session_id,
+        turn_id: input.turn_id,
+        event_id: input.turn_update_event.id,
+        event: jsonbBind(input.turn_update_event),
+        created_at: input.turn_update_event.created_at,
+      })
+      .execute();
+  });
+}
+
+/** Atomically transitions a non-terminal turn to terminal and appends turn.done. */
+export async function updateTurnTerminalState(
+  db: Kysely<Database>,
+  input: UpdateTurnTerminalStateInput,
+): Promise<void> {
   await db.transaction().execute(async trx => {
     const result = await trx
       .updateTable('turn')
@@ -811,11 +864,10 @@ export async function updateTurnState(db: Kysely<Database>, input: UpdateTurnSta
       })
       .where('session_id', '=', input.session_id)
       .where('turn_id', '=', input.turn_id)
-      .where(sql<boolean>`state->>'status' = 'running'`)
+      .where(sql<boolean>`state->>'status' IN ('running', 'paused')`)
       .returning(['created_at'])
       .executeTakeFirst();
 
-    // No RETURNING row: UPDATE matched 0 running turns.
     if (result === undefined) {
       const existing = await trx
         .selectFrom('turn')

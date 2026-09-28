@@ -4,7 +4,7 @@ import type { SessionRecord } from '../models/SessionRecord';
 import type { TurnRecord, TurnSnapshot } from '../models/TurnRecord';
 import type { PersistedTurnEvent, SessionEventItem } from '../schemas/events';
 import type { TokenPagination } from '../schemas/pagination';
-import type { TerminalTurnState, TurnInboundEventItem } from '../schemas/turn';
+import { isNonTerminalTurnState, type TerminalTurnState, type TurnInboundEventItem } from '../schemas/turn';
 import { assertCreateTurnThreadDelta } from './assertCreateTurnThreadDelta';
 import type {
   AddThreadsInput,
@@ -33,7 +33,8 @@ import type {
   TurnContextAppend,
   TurnRecordWithoutSnapshot,
   UpdateSessionInput,
-  UpdateTurnStateInput,
+  UpdateTurnNonTerminalStateInput,
+  UpdateTurnTerminalStateInput,
 } from './ISessionStore';
 import { decodeOffsetPageToken, encodeOffsetPageToken } from './OffsetPageToken';
 import {
@@ -433,7 +434,7 @@ export class InMemorySessionStore<
     const tKey = turnKey(input);
     const turn = this.requireTurn(input.session_id, input.turn_id);
 
-    if (turn.state.status === 'running') {
+    if (isNonTerminalTurnState(turn.state)) {
       const cancelledState: TerminalTurnState = {
         status: 'cancelled',
         reason: input.reason,
@@ -475,22 +476,41 @@ export class InMemorySessionStore<
     return paginate(records, input.limit, input.page_token);
   }
 
-  async updateTurnState(input: UpdateTurnStateInput): Promise<void> {
+  async updateTurnNonTerminalState(input: UpdateTurnNonTerminalStateInput): Promise<void> {
     // Same as createTurn: synchronous body ⇒ atomic under run-to-completion.
     const tKey = turnKey(input);
     const turn = this.requireTurn(input.session_id, input.turn_id);
-    if (turn.state.status === 'paused') {
-      throw new SessionStoreInvariantError(`expected running state for turn ${input.turn_id}, got paused`);
-    }
-    if (turn.state.status !== 'running') {
+    const expectedSourceStatus = input.state.status === 'paused' ? 'running' : 'paused';
+    if (turn.state.status !== expectedSourceStatus) {
+      if (isNonTerminalTurnState(turn.state)) {
+        throw new SessionStoreInvariantError(
+          `expected ${expectedSourceStatus} state for turn ${input.turn_id}, got ${turn.state.status}`,
+        );
+      }
       throw new TurnNotRunningError(input.turn_id, turn.state);
+    }
+    const list = this.events.get(tKey);
+    if (!list) {
+      throw new TurnNotFoundError(input.turn_id);
     }
     turn.state = deepCopy(input.state);
     turn.updated_at = new Date();
-    const list = this.events.get(tKey);
-    if (list) {
-      list.push(deepCopy(input.turn_done_event));
+    list.push(deepCopy(input.turn_update_event));
+  }
+
+  async updateTurnTerminalState(input: UpdateTurnTerminalStateInput): Promise<void> {
+    const tKey = turnKey(input);
+    const turn = this.requireTurn(input.session_id, input.turn_id);
+    if (!isNonTerminalTurnState(turn.state)) {
+      throw new TurnNotRunningError(input.turn_id, turn.state);
     }
+    const list = this.events.get(tKey);
+    if (!list) {
+      throw new TurnNotFoundError(input.turn_id);
+    }
+    turn.state = deepCopy(input.state);
+    turn.updated_at = new Date();
+    list.push(deepCopy(input.turn_done_event));
     this.addTerminalSessionMetrics(input.session_id, turn.created_at, input.state);
   }
 

@@ -34,7 +34,8 @@ import type {
   RemoveThreadsInput,
   TurnRecordWithoutSnapshot,
   UpdateSessionInput,
-  UpdateTurnStateInput,
+  UpdateTurnNonTerminalStateInput,
+  UpdateTurnTerminalStateInput,
 } from '@truefoundry/trueforge-core/agent-session/store/ISessionStore';
 import {
   decodeOffsetPageToken,
@@ -77,7 +78,8 @@ import {
   freezeAndGetTurn as freezeAndGetTurnQuery,
   getTurn as getTurnQuery,
   listTurns as listTurnsQuery,
-  updateTurnState as updateTurnStateQuery,
+  updateTurnNonTerminalState as updateTurnNonTerminalStateQuery,
+  updateTurnTerminalState as updateTurnTerminalStateQuery,
 } from './queries/turns';
 
 /** Prefix on session.agent_id when the SF agent is not yet imported locally. */
@@ -210,8 +212,12 @@ export class PostgresSessionStore implements ISessionStore<SessionCustom, TurnCu
     return { data: result.turns, pagination };
   }
 
-  updateTurnState(input: UpdateTurnStateInput): Promise<void> {
-    return updateTurnStateQuery(this.db, input);
+  updateTurnNonTerminalState(input: UpdateTurnNonTerminalStateInput): Promise<void> {
+    return updateTurnNonTerminalStateQuery(this.db, input);
+  }
+
+  updateTurnTerminalState(input: UpdateTurnTerminalStateInput): Promise<void> {
+    return updateTurnTerminalStateQuery(this.db, input);
   }
 
   appendToEvents(input: AppendToEventsInput): Promise<void> {
