@@ -51,6 +51,36 @@ describe('AgentMcpEditorContent tool sections', () => {
     expect(screen.getByRole('switch', { name: 'Enable all read-only tools' })).toBeInTheDocument();
   });
 
+  it('shows the full tool description in a tooltip on hover', () => {
+    const longDescription =
+      'Retrieve an issue attachment by ID. Use format=url to get its title and download URL without downloading bytes.';
+    render(
+      <SlotsProvider>
+        <AgentMcpEditorContent
+          spec={{ model: { name: 'openai/gpt' } }}
+          connectors={[{ id: 'linear', name: 'Linear', authenticated: true }]}
+          query=""
+          activeConnectorId="linear"
+          tools={[tool('get_attachment', longDescription, { readOnlyHint: true, destructiveHint: false })]}
+          connectorLoading={false}
+          connectorError={null}
+          toolsLoading={false}
+          toolsError={null}
+          onQueryChange={vi.fn()}
+          onSelectConnector={vi.fn()}
+          onRetryTools={vi.fn()}
+          onChange={vi.fn()}
+        />
+      </SlotsProvider>,
+    );
+
+    const descriptionEl = screen.getByText(longDescription);
+    expect(descriptionEl).toHaveClass('line-clamp-1');
+
+    fireEvent.mouseEnter(descriptionEl);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(longDescription);
+  });
+
   it('enables only read-only tools from the section toggle', () => {
     const onChange = vi.fn();
     render(

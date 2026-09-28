@@ -441,7 +441,7 @@ export function AgentConfigPanel({
             <div className="min-w-0 flex-1">
               <p
                 className={cn(
-                  'line-clamp-3 whitespace-pre-wrap text-sm',
+                  'line-clamp-3 whitespace-pre-wrap text-xs',
                   instructionPreview ? 'text-text-primary' : 'text-text-secondary',
                 )}
               >

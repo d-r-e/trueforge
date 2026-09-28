@@ -102,7 +102,15 @@ export function CatalogRow({
           <span className="text-text-primary truncate text-sm font-medium">{title}</span>
           {badge}
         </span>
-        {description ? <span className="text-text-secondary line-clamp-1 text-xs">{description}</span> : null}
+        {description ? (
+          <Tooltip
+            content={description}
+            className="max-w-sm whitespace-normal text-left"
+            triggerClassName="block min-w-0 w-full max-w-full"
+          >
+            <span className="text-text-secondary line-clamp-1 text-xs">{description}</span>
+          </Tooltip>
+        ) : null}
       </span>
     </>
   );
