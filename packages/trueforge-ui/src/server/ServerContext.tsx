@@ -60,9 +60,7 @@ export function ServerProvider({ server, children }: { server: AgentUIServer; ch
   return (
     <ServerContext.Provider value={server}>
       <ServerCapabilitiesContext.Provider value={capabilitiesValue}>
-        <CanCreateAgentProvider permissionsServer={server.permissions ?? null}>
-          {children}
-        </CanCreateAgentProvider>
+        <CanCreateAgentProvider permissionsServer={server.permissions ?? null}>{children}</CanCreateAgentProvider>
       </ServerCapabilitiesContext.Provider>
     </ServerContext.Provider>
   );
