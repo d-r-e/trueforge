@@ -10,8 +10,11 @@
 #   - none pending + unpublished versions → pack (build/test) + Windows npx smoke
 #     in parallel with the from-source image (image waits only on npm view of
 #     @truefoundry/trueforge@version; skip image+chart if that version is already
-#     on npm). After the image is pushed, this workflow calls release-chart.yml
-#     with branch main, app_version, and image_tag. Helm does not wait on pack.
+#     on npm). The release image is built on the private Chainguard node bases.
+#     Local and contributor builds do not get those credentials and stay on
+#     node:24-slim. After the image is pushed, this workflow calls
+#     release-chart.yml with branch main, app_version, and image_tag. Helm does
+#     not wait on pack.
 # Merge the Version Packages PR to publish. After Helm publish, release-chart.yml
 # tags charts/trueforge@<chartVersion> on the metadata commit.
 #
@@ -322,27 +325,78 @@ jobs:
             exit 1
           fi
 
+  # Inlined instead of github-workflows-public build.yml: Chainguard login has to
+  # happen in the same job that pulls the base images, and that reusable workflow
+  # has no cgr.dev auth. Secrets here are available only on this repo's main
+  # pushes and dispatch, not on fork CI.
   build-image:
     name: Build and push server image
     if: needs.resolve-image.outputs.skip == 'false'
     needs: [resolve-image]
-    uses: truefoundry/github-workflows-public/.github/workflows/build.yml@main
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
-      id-token: write
       contents: read
-    with:
-      artifactory_registry_url: ${{ vars.TRUEFOUNDRY_ARTIFACTORY_REGISTRY_URL }}
-      artifactory_repository_url: ${{ vars.TRUEFOUNDRY_ARTIFACTORY_PUBLIC_REPOSITORY }}
-      image_artifact_name: trueforge
-      image_tag: ${{ needs.resolve-image.outputs.image_tag }}
-      image_context: .
-      dockerfile_path: Dockerfile
-      platforms: linux/amd64
-      enable_jfrog: true
-      enable_public_ecr: false
-    secrets:
-      artifactory_username: ${{ secrets.TRUEFORGE_ARTIFACTORY_USERNAME }}
-      artifactory_password: ${{ secrets.TRUEFORGE_ARTIFACTORY_PASSWORD }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Require Chainguard credentials
+        env:
+          CHAINGUARD_USERNAME: ${{ secrets.TRUEFORGE_CHAINGUARD_USERNAME }}
+          CHAINGUARD_PASSWORD: ${{ secrets.TRUEFORGE_CHAINGUARD_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CHAINGUARD_USERNAME" ] || [ -z "$CHAINGUARD_PASSWORD" ]; then
+            echo "Set TRUEFORGE_CHAINGUARD_USERNAME and TRUEFORGE_CHAINGUARD_PASSWORD to build the release image." >&2
+            exit 1
+          fi
+
+      - name: Resolve Chainguard base images
+        id: base
+        env:
+          BUILD_BASE_IMAGE: ${{ vars.TRUEFORGE_CHAINGUARD_NODE_DEV_IMAGE }}
+          RUNTIME_BASE_IMAGE: ${{ vars.TRUEFORGE_CHAINGUARD_NODE_IMAGE }}
+        run: |
+          set -euo pipefail
+          BUILD_BASE_IMAGE="${BUILD_BASE_IMAGE:-cgr.dev/truefoundry.com/node:24-dev}"
+          RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE:-cgr.dev/truefoundry.com/node:24}"
+          echo "build_base_image=$BUILD_BASE_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "runtime_base_image=$RUNTIME_BASE_IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to JFrog Artifactory
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.TRUEFOUNDRY_ARTIFACTORY_REGISTRY_URL }}
+          username: ${{ secrets.TRUEFORGE_ARTIFACTORY_USERNAME }}
+          password: ${{ secrets.TRUEFORGE_ARTIFACTORY_PASSWORD }}
+
+      - name: Log in to Chainguard
+        uses: docker/login-action@v3
+        with:
+          registry: cgr.dev
+          username: ${{ secrets.TRUEFORGE_CHAINGUARD_USERNAME }}
+          password: ${{ secrets.TRUEFORGE_CHAINGUARD_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ vars.TRUEFOUNDRY_ARTIFACTORY_PUBLIC_REPOSITORY }}/trueforge:${{ needs.resolve-image.outputs.image_tag }}
+          cache-from: type=registry,ref=${{ vars.TRUEFOUNDRY_ARTIFACTORY_PUBLIC_REPOSITORY }}/trueforge:buildcache
+          cache-to: type=registry,ref=${{ vars.TRUEFOUNDRY_ARTIFACTORY_PUBLIC_REPOSITORY }}/trueforge:buildcache,mode=max,image-manifest=true,compression=zstd
+          build-args: |
+            BUILD_BASE_IMAGE=${{ steps.base.outputs.build_base_image }}
+            RUNTIME_BASE_IMAGE=${{ steps.base.outputs.runtime_base_image }}
 
   release-chart:
     name: Publish Helm chart

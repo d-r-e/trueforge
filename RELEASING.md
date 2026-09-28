@@ -157,6 +157,22 @@ manual chart-only (image already in the registry)
 | [`Dockerfile`](Dockerfile)         | From-source. Prod Helm, [`docker-compose.yml`](docker-compose.yml), Railway |
 | [`Dockerfile.npm`](Dockerfile.npm) | Previous npm-install image (`APP_VERSION` from the registry)                |
 
+`docker build` with no args uses public `node:24-slim` for both the builder and
+the runtime. Contributor CI and Railway do the same, and they have no Chainguard
+credentials. [`release.yml`](.github/workflows/release.yml) is the only build
+that logs in to `cgr.dev` and passes:
+
+| Build arg            | Default when the variable is unset    |
+| -------------------- | ------------------------------------- |
+| `BUILD_BASE_IMAGE`   | `cgr.dev/truefoundry.com/node:24-dev` |
+| `RUNTIME_BASE_IMAGE` | `cgr.dev/truefoundry.com/node:24`     |
+
+Repository variables `TRUEFORGE_CHAINGUARD_NODE_DEV_IMAGE` and
+`TRUEFORGE_CHAINGUARD_NODE_IMAGE` override those tags. Keep the runtime tag on
+the standard image (`node:24`), not `node:24-slim`: slim has no shell, and the
+Dockerfile still creates uid 10001 at build time. The job needs secrets
+`TRUEFORGE_CHAINGUARD_USERNAME` and `TRUEFORGE_CHAINGUARD_PASSWORD`.
+
 The image is the workspace at the package-publish commit. Chart `appVersion` is
 that commit's `packages/trueforge/package.json` version. Image tags use the
 peeled commit SHA (`git rev-parse HEAD`), not an annotated-tag object.

@@ -9,8 +9,18 @@
 # the download layer stays cached when only package.json / scripts change.
 # See https://pnpm.io/cli/fetch. BuildKit cache mounts are avoided so the same
 # file builds on Railway Metal (which requires a hardcoded service id in mount ids).
+#
+# Base images are build args so a local or contributor build stays on the public
+# Docker Hub image. The release workflow overrides both with the private
+# Chainguard images (builder: node:24-dev, runtime: node:24).
 
-FROM node:24-slim AS base
+ARG BUILD_BASE_IMAGE=node:24-slim
+ARG RUNTIME_BASE_IMAGE=node:24-slim
+
+FROM ${BUILD_BASE_IMAGE} AS base
+# Chainguard images default to uid 65532. Package install must run as root.
+# node:24-slim is already root.
+USER root
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && pnpm config set store-dir /pnpm/store
@@ -79,8 +89,13 @@ RUN pnpm install --frozen-lockfile --offline --prod --filter @truefoundry/truefo
 
 # ---------------------------------------------------------------------------
 # runner: minimal image with prod node_modules + built artifacts.
+# Fresh FROM so a Chainguard runtime image does not keep the builder toolchain.
+# The default matches the builder, so local builds stay on node:24-slim.
 # ---------------------------------------------------------------------------
-FROM base AS runner
+FROM ${RUNTIME_BASE_IMAGE} AS runner
+
+USER root
+WORKDIR /app
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0
@@ -105,11 +120,19 @@ COPY --from=frontend-builder /app/packages/frontend/dist ./packages/trueforge/di
 
 WORKDIR /app/packages/trueforge
 
-RUN groupadd --gid 10001 trueforge \
-  && useradd --uid 10001 --gid trueforge trueforge
+# Chart pods run as uid 10001. Debian has groupadd; Chainguard node has BusyBox.
+RUN if [ -x /usr/sbin/groupadd ]; then \
+      groupadd --gid 10001 trueforge \
+      && useradd --uid 10001 --gid trueforge trueforge; \
+    else \
+      addgroup -g 10001 trueforge \
+      && adduser -D -H -u 10001 -G trueforge trueforge; \
+    fi
 
 EXPOSE 8790
 
-# Launch-only (matches root `pnpm start` / `standalone:start`). Image already contains dist.
 USER 10001:10001
-CMD ["node", "dist/main.js"]
+# Chainguard node sets ENTRYPOINT to the node binary. Pin the same command on
+# both bases so CMD is not passed to that binary as a script name.
+ENTRYPOINT ["node"]
+CMD ["dist/main.js"]
