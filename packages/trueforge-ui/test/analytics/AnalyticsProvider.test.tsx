@@ -24,6 +24,22 @@ describe('AnalyticsProvider', () => {
 
     expect(track).toHaveBeenCalledWith(AnalyticsEvents.Message.SENT, { has_text: true });
   });
+
+  it('does not throw when the host track sink throws', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const track = vi.fn(() => {
+      throw new Error('sink down');
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AnalyticsProvider track={track}>{children}</AnalyticsProvider>
+    );
+
+    const { result } = renderHook(() => useTrackAnalytics(), { wrapper });
+
+    expect(() => result.current(AnalyticsEvents.Message.SENT)).not.toThrow();
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });
 
 describe('withSessionProps', () => {

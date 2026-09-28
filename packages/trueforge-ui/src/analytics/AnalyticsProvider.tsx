@@ -13,7 +13,12 @@ const noopTrack: TrackAnalytics = () => {};
 export function AnalyticsProvider({ track, children }: { track?: TrackAnalytics; children: ReactNode }) {
   const stableTrack = useCallback<TrackAnalytics>(
     (eventName, data) => {
-      track?.(eventName, data);
+      // Fire sites call this right before the product action; a broken sink must not block it.
+      try {
+        track?.(eventName, data);
+      } catch (error) {
+        console.error('[trueforge-ui] analytics track failed', error);
+      }
     },
     [track],
   );
