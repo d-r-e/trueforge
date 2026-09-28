@@ -282,6 +282,7 @@ export class TurnHandle<TTurnCustom extends object = Record<string, never>> {
     }
     let caughtError: Error | undefined;
     let executeResult: AgentThreadExecutionResult | undefined;
+    let pauseWriteError: unknown;
 
     try {
       yield await this.persistTurnCreated();
@@ -290,12 +291,25 @@ export class TurnHandle<TTurnCustom extends object = Record<string, never>> {
         return;
       }
       if (executeResult.status === 'paused') {
-        yield await this.persistTurnPaused(executeResult);
+        try {
+          yield await this.persistTurnPaused(executeResult);
+        } catch (error) {
+          if (error instanceof TurnNotRunningError) {
+            throw error;
+          }
+          pauseWriteError = error;
+          return;
+        }
         await waitUntilAborted(signal);
       }
     } catch (error) {
       caughtError = error instanceof Error ? error : new Error(String(error));
     } finally {
+      if (pauseWriteError !== undefined) {
+        await this.closeResolver(resolver);
+        // eslint-disable-next-line no-unsafe-finally -- pause-state write failed; reject without a terminal write
+        throw pauseWriteError;
+      }
       if (shouldStayPaused(signal, caughtError, executeResult, this.turn.state)) {
         // eslint-disable-next-line no-unsafe-finally -- paused HITL is non-terminal
         return;
