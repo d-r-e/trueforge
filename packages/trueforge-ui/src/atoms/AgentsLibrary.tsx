@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import { useResourcePermissions } from '../hooks/useResourcePermissions.js';
 import { useSessionShareSearch } from '../hooks/useSessionShareSearch.js';
@@ -38,6 +38,8 @@ const AGENTS_PAGE_SIZE_OPTIONS = [10, 25] as const;
 
 export type AgentsLibraryProps = {
   onSelectAgent?: (agentName: string) => void;
+  /** Leading chrome for the page header (e.g. mobile nav hamburger). */
+  headerStart?: ReactNode;
 };
 
 export type AgentScheduleSummary = {
@@ -347,7 +349,7 @@ async function listAllSchedulesForAgents({
   return rows;
 }
 
-export function AgentsLibrary({ onSelectAgent }: AgentsLibraryProps) {
+export function AgentsLibrary({ onSelectAgent, headerStart }: AgentsLibraryProps) {
   const shell = useShellMode();
   const { updateShareSearch } = useSessionShareSearch();
   const sessionsServer = useOptionalAgentSessionsServer();
@@ -465,6 +467,7 @@ export function AgentsLibrary({ onSelectAgent }: AgentsLibraryProps) {
     <div className="flex h-full min-h-0 w-full flex-col bg-primary-bg">
       <PageHeader
         title="Agents"
+        start={headerStart}
         end={
           <div className="w-56 shrink-0">
             <SearchInput query={query} setQuery={setQuery} placeholder="Search agents" />

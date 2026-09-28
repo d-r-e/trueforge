@@ -1,6 +1,6 @@
 'use client';
 
-import { lazy, Suspense, useCallback, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import { useDraftCatalog } from '@/atoms/draft/DraftCatalogProvider.js';
 import { auiButtonClass } from '@/atoms/lib/buttonClasses.js';
@@ -28,7 +28,7 @@ function SettingsSectionFallback() {
   );
 }
 
-const TruefoundrySettingsBuilder = () => {
+const TruefoundrySettingsBuilder = ({ headerStart }: { headerStart?: ReactNode } = {}) => {
   const { settingsOpen, settingsSection: section, setSettingsOpen } = useShellMode();
   const catalog = useOptionalCatalogServer();
   const refreshServerCapabilities = useOptionalRefreshServerCapabilities();
@@ -110,15 +110,17 @@ const TruefoundrySettingsBuilder = () => {
       <PageHeader
         title="Settings"
         start={
-          <button
-            type="button"
-            aria-label="Back"
-            title="Back"
-            className={auiButtonClass({ variant: 'ghost', size: 'icon' })}
-            onClick={closeSettings}
-          >
-            <Icon name="arrow-left" />
-          </button>
+          headerStart ?? (
+            <button
+              type="button"
+              aria-label="Back"
+              title="Back"
+              className={auiButtonClass({ variant: 'ghost', size: 'icon' })}
+              onClick={closeSettings}
+            >
+              <Icon name="arrow-left" />
+            </button>
+          )
         }
       />
 

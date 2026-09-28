@@ -415,7 +415,7 @@ describe('StackChatPanel', () => {
 });
 
 describe('SidebarLayout', () => {
-  it('lets mobile builders close and reopen Agent Config', () => {
+  it('shows a desktop-only notice for Build Agent on mobile', () => {
     const originalMatchMedia = window.matchMedia;
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: mobileMatchMedia });
 
@@ -436,41 +436,120 @@ describe('SidebarLayout', () => {
         </SlotsProvider>,
       );
 
+      // Desktop rail is CSS-hidden but still mounted; click Build Agent from there.
       fireEvent.click(screen.getByRole('button', { name: 'Start new agent' }));
-      expect(screen.getByRole('dialog', { name: 'Agent Config' })).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Close agent config' }));
+      expect(screen.getByRole('heading', { name: 'Best viewed on desktop' })).toBeInTheDocument();
       expect(screen.queryByRole('dialog', { name: 'Agent Config' })).not.toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Agent config' }));
-      expect(screen.getByRole('dialog', { name: 'Agent Config' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Navigation' })).toBeInTheDocument();
     } finally {
       Object.defineProperty(window, 'matchMedia', { configurable: true, value: originalMatchMedia });
     }
   });
 
-  it('shows the app brand in the mobile navigation drawer', () => {
+  it('opens a Claude-style mobile navigation drawer with history and footer actions', async () => {
     render(
       <SlotsProvider theme={{ brand: { mode: 'icon-title', name: 'Acme', icon: { src: '/acme.svg' } } }}>
-        <ShellModeProvider>
-          <RuntimeHarness messages={[]}>
-            <div className="h-96">
-              <SidebarLayout />
-            </div>
-          </RuntimeHarness>
-        </ShellModeProvider>
+        <ServerProvider server={mockServer(stubCatalog)}>
+          <ShellModeProvider agentConfig={{ mode: 'AgentLibraryWithComposer' }}>
+            <RuntimeHarness messages={[]}>
+              <div className="h-96">
+                <SidebarLayout />
+              </div>
+            </RuntimeHarness>
+          </ShellModeProvider>
+        </ServerProvider>
       </SlotsProvider>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Navigation' }));
 
     const drawer = screen.getByRole('dialog', { name: 'Navigation' });
-    expect(drawer).toHaveClass('w-20');
+    expect(drawer).toHaveClass('w-80');
     expect(within(drawer).getByAltText('Acme')).toHaveAttribute('src', '/acme.svg');
-    expect(within(drawer).queryByText('Acme')).not.toBeInTheDocument();
+    expect(within(drawer).getByText('Acme')).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: 'Close navigation' })).toBeInTheDocument();
     expect(within(drawer).getByRole('button', { name: 'Start new chat' })).toBeInTheDocument();
-    expect(within(drawer).getByRole('button', { name: 'Start new agent' })).toBeInTheDocument();
-    expect(within(drawer).queryByText('No threads yet')).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: 'Start new agent' })).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: 'Sessions' })).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: 'Schedules' })).not.toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: /^Agents/ })).toBeInTheDocument();
+    expect(within(drawer).getByText('Chat History')).toBeInTheDocument();
+    expect(within(drawer).getByRole('link', { name: 'Documentation' })).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: /Switch to (light|dark) theme/ })).toBeInTheDocument();
+    expect(await within(drawer).findByRole('button', { name: 'Settings' })).toBeInTheDocument();
+
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Close navigation' }));
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+  });
+
+  it('closes the mobile drawer on Escape, backdrop click, and New Chat', () => {
+    render(
+      <SlotsProvider>
+        <ServerProvider server={mockServer(stubCatalog)}>
+          <ShellModeProvider>
+            <RuntimeHarness messages={[]}>
+              <div className="h-96">
+                <SidebarLayout />
+              </div>
+            </RuntimeHarness>
+          </ShellModeProvider>
+        </ServerProvider>
+      </SlotsProvider>,
+    );
+
+    const menu = screen.getByRole('button', { name: 'Navigation' });
+    fireEvent.click(menu);
+    expect(screen.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+    expect(menu).toHaveFocus();
+
+    fireEvent.click(menu);
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation backdrop' }));
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+
+    fireEvent.click(menu);
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('button', { name: 'Start new chat' }),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+  });
+
+  it('inlines the hamburger into Settings and Agents headers on mobile', async () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: mobileMatchMedia });
+
+    try {
+      render(
+        <SlotsProvider>
+          <ServerProvider server={mockServer(stubCatalog)}>
+            <ShellModeProvider agentConfig={{ mode: 'AgentLibraryWithComposer' }}>
+              <RuntimeHarness messages={[]}>
+                <div className="h-96">
+                  <SidebarLayout />
+                </div>
+              </RuntimeHarness>
+            </ShellModeProvider>
+          </ServerProvider>
+        </SlotsProvider>,
+      );
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+      const settingsHeading = await screen.findByRole('heading', { name: 'Settings' });
+      const settingsNav = screen.getByRole('button', { name: 'Navigation' });
+      expect(settingsHeading.previousElementSibling).toBe(settingsNav);
+      expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
+
+      fireEvent.click(settingsNav);
+      fireEvent.click(
+        within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('button', { name: /^Agents/ }),
+      );
+      const agentsHeading = await screen.findByRole('heading', { name: 'Agents' });
+      expect(agentsHeading.previousElementSibling).toBe(screen.getByRole('button', { name: 'Navigation' }));
+    } finally {
+      Object.defineProperty(window, 'matchMedia', { configurable: true, value: originalMatchMedia });
+    }
   });
 
   it('shows the default icon mark in the permanent rail', () => {

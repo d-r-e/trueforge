@@ -3,6 +3,7 @@
 import { lazy, Suspense, useRef } from 'react';
 
 import { useAui } from '../assistant-ui.js';
+import { DesktopOnlyNotice } from '../atoms/DesktopOnlyNotice.js';
 import { NamedAgentHeaderLabel } from '../atoms/NamedAgentHeaderLabel.js';
 import { PageHeader } from '../atoms/PageHeader.js';
 import { ShellActions } from '../atoms/ShellActions.js';
@@ -42,8 +43,10 @@ export function DrawerLayout({ className }: { className?: string }) {
   const schedulesOpen = shell?.schedulesOpen === true;
   const overlayOpen = settingsOpen || libraryOpen || sessionsOpen || schedulesOpen;
   const chatChromeActionsVisible = useChatChromeActionsVisible();
-  const showAgentConfig =
-    shell != null && shellIsCreateAgent(shell.mode) && !overlayOpen && (!isMobile || shell.agentConfigOpen);
+  const isCreateAgent = shell != null && shellIsCreateAgent(shell.mode);
+  const showDesktopOnlyNotice =
+    isMobile && (sessionsOpen || schedulesOpen || (isCreateAgent && !settingsOpen && !libraryOpen));
+  const showAgentConfig = isCreateAgent && !overlayOpen && !isMobile;
   const showNewActions = shell?.isNewChatEnabled !== false;
 
   const handleNewChat = () => {
@@ -74,7 +77,7 @@ export function DrawerLayout({ className }: { className?: string }) {
           aria-label="Agent Config"
           className="absolute inset-y-0 left-0 z-20 w-full max-w-sm border-r border-border shadow-xl md:static md:z-auto md:w-88 md:max-w-none md:shrink-0 md:shadow-none"
         >
-          <AgentConfigDrawerContainer showClose={isMobile} />
+          <AgentConfigDrawerContainer />
         </aside>
       ) : null}
 
@@ -83,9 +86,9 @@ export function DrawerLayout({ className }: { className?: string }) {
         <PageHeader
           className="bg-topbar-bg"
           title={
-            !overlayOpen ? (
+            !overlayOpen && !showDesktopOnlyNotice ? (
               <NamedAgentHeaderLabel />
-            ) : libraryOpen || schedulesOpen ? (
+            ) : libraryOpen || (schedulesOpen && !isMobile) ? (
               <button
                 type="button"
                 className={auiButtonClass({ variant: 'ghost', size: 'small' })}
@@ -101,7 +104,7 @@ export function DrawerLayout({ className }: { className?: string }) {
           }
           end={
             <>
-              {!overlayOpen ? (
+              {!overlayOpen && !showDesktopOnlyNotice ? (
                 <>
                   <ShareChatButton />
                   <ClearChatButton />
@@ -110,7 +113,7 @@ export function DrawerLayout({ className }: { className?: string }) {
               ) : null}
               <ShellActions key="shell-actions" />
               <UserAvatar />
-              {!overlayOpen ? (
+              {!overlayOpen && !showDesktopOnlyNotice ? (
                 <>
                   {showNewActions && !chatChromeActionsVisible ? (
                     <button
@@ -123,7 +126,7 @@ export function DrawerLayout({ className }: { className?: string }) {
                       <Icon name="square-pen" />
                     </button>
                   ) : null}
-                  {showNewActions && shell?.isComposerEnabled ? (
+                  {showNewActions && shell?.isComposerEnabled && !isMobile ? (
                     <button
                       type="button"
                       aria-label="New Agent"
@@ -156,6 +159,8 @@ export function DrawerLayout({ className }: { className?: string }) {
             >
               <TruefoundrySettingsBuilder />
             </Suspense>
+          ) : showDesktopOnlyNotice ? (
+            <DesktopOnlyNotice />
           ) : sessionsOpen ? (
             <SessionsPage />
           ) : libraryOpen && shell?.libraryAgentId != null ? (
