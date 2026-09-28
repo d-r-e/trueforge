@@ -53,11 +53,7 @@ export const SandboxEnvironmentResourcesSchema = z
 export const SandboxEnvironmentSecretSchema = z
   .object({
     env: z.string().min(1).describe('Environment variable name injected into the sandbox.'),
-    value: z
-      .string()
-      .min(1)
-      .optional()
-      .describe('Secret value or placeholder; resolved against the secrets store later.'),
+    value: z.string().min(1).describe('Secret value; GET responses use a redacted stand-in.'),
     hosts: z.array(z.string().min(1)).describe('Hosts this secret may be sent to.'),
   })
   .strict()
@@ -129,19 +125,12 @@ export const SandboxEnvironmentVersionSecretSchema = z
 /** Version jsonb column only — not on CRUD wire responses. */
 export const SandboxEnvironmentVersionInternalMetadataSchema = z
   .object({
-    secrets: z.array(SandboxEnvironmentVersionSecretSchema).describe('Resolved secret refs for this version.'),
+    secrets: z
+      .array(SandboxEnvironmentVersionSecretSchema)
+      .default([])
+      .describe('Resolved secret refs for this version.'),
   })
   .strict();
-
-export const SandboxEnvironmentVersionSummarySchema = z
-  .object({
-    version: z.number().int().positive().describe('Monotonic version number within the environment.'),
-    status: SandboxEnvironmentVersionStatusSchema,
-    status_reason: z.string().nullable().describe('Failure detail when status is failed; null otherwise.'),
-    external_ref: z.string().min(1).describe('Server-generated provider snapshot/build name.'),
-  })
-  .strict()
-  .openapi('SandboxEnvironmentVersionSummary');
 
 export const CreateSandboxEnvironmentRequestSchema = z
   .object({
@@ -166,8 +155,9 @@ export const SandboxEnvironmentSchema = z
     description: z.string().describe('Human-readable description; empty when unset.'),
     active_version: z.number().int().positive().describe('Version currently pointed at by the environment.'),
     lifecycle_stage: SandboxEnvironmentLifecycleStageSchema,
+    status: SandboxEnvironmentVersionStatusSchema.describe('Status of the active version.'),
+    status_reason: z.string().nullable().describe('Failure detail when status is failed; null otherwise.'),
     manifest: SandboxEnvironmentManifestSchema,
-    version: SandboxEnvironmentVersionSummarySchema,
     created_by_subject: CreatedBySubjectSchema,
     created_at: IsoTimestamp.describe('ISO-8601 create time.'),
     updated_at: IsoTimestamp.describe('ISO-8601 last update time.'),
@@ -193,7 +183,6 @@ export type SandboxEnvironmentVersionStatus = z.infer<typeof SandboxEnvironmentV
 export type SandboxEnvironmentManifest = z.infer<typeof SandboxEnvironmentManifestSchema>;
 export type StoredSandboxEnvironmentManifest = z.infer<typeof StoredSandboxEnvironmentManifestSchema>;
 export type SandboxEnvironmentVersionInternalMetadata = z.infer<typeof SandboxEnvironmentVersionInternalMetadataSchema>;
-export type SandboxEnvironmentVersionSummary = z.infer<typeof SandboxEnvironmentVersionSummarySchema>;
 export type CreateSandboxEnvironmentRequest = z.infer<typeof CreateSandboxEnvironmentRequestSchema>;
 export type UpdateSandboxEnvironmentRequest = z.infer<typeof UpdateSandboxEnvironmentRequestSchema>;
 export type SandboxEnvironment = z.infer<typeof SandboxEnvironmentSchema>;

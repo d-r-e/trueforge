@@ -1,0 +1,157 @@
+/**
+ * Versioning helpers for sandbox environments: stored manifest shape, diff,
+ * and buildNextVersion (no DB writes — store create/update persist the row).
+ */
+import { randomUUID } from 'node:crypto';
+import {
+  SandboxEnvironmentVersionInternalMetadataSchema,
+  type SandboxEnvironmentManifest,
+  type SandboxEnvironmentVersionInternalMetadata,
+  type SandboxEnvironmentVersionStatus,
+  type StoredSandboxEnvironmentManifest,
+} from '../schemas/sandboxEnvironment';
+import { isRedactedSecretValue, resolveStoredSecretValue, toRedactedSecretValue } from '../utils/secretRedaction';
+
+export type SandboxEnvironmentProviderType = StoredSandboxEnvironmentManifest['type'];
+
+export interface ManifestDiff {
+  build_script_changed: boolean;
+  resources_changed: boolean;
+  /** Request includes at least one non-redacted secret value (new material to sync). */
+  secrets_changed: boolean;
+}
+
+export interface NextSandboxEnvironmentVersion {
+  needs_snapshot: boolean;
+  version: number;
+  manifest: StoredSandboxEnvironmentManifest;
+  status: SandboxEnvironmentVersionStatus;
+  status_reason: null;
+  external_ref: string;
+  internal_metadata: SandboxEnvironmentVersionInternalMetadata;
+}
+
+/** Merge redacted keep-as-is stand-ins with previously stored secret values (sandbox-provider style). */
+export function resolveManifestSecrets({
+  manifest,
+  previous,
+}: {
+  manifest: SandboxEnvironmentManifest;
+  previous?: StoredSandboxEnvironmentManifest;
+}): SandboxEnvironmentManifest {
+  const secrets = manifest.networking?.secrets;
+  if (!secrets) {
+    return manifest;
+  }
+  const previousByEnv = new Map((previous?.networking?.secrets ?? []).map(secret => [secret.env, secret.value]));
+  return {
+    ...manifest,
+    networking: {
+      ...manifest.networking,
+      secrets: secrets.map(secret => ({
+        ...secret,
+        value: resolveStoredSecretValue({
+          incoming: secret.value,
+          existing: previousByEnv.get(secret.env),
+        }),
+      })),
+    },
+  };
+}
+
+/** Mask secret values for API responses. */
+export function redactManifestSecrets(manifest: SandboxEnvironmentManifest): SandboxEnvironmentManifest {
+  const secrets = manifest.networking?.secrets;
+  if (!secrets) {
+    return manifest;
+  }
+  return {
+    ...manifest,
+    networking: {
+      ...manifest.networking,
+      secrets: secrets.map(secret => ({
+        ...secret,
+        value: toRedactedSecretValue(secret.value),
+      })),
+    },
+  };
+}
+
+/** Fill backend-only type/sandbox_provider for jsonb storage. */
+export function toStoredManifest({
+  manifest,
+  provider_type,
+}: {
+  manifest: SandboxEnvironmentManifest;
+  provider_type: SandboxEnvironmentProviderType;
+}): StoredSandboxEnvironmentManifest {
+  return {
+    ...manifest,
+    type: provider_type,
+    sandbox_provider: provider_type,
+  };
+}
+
+export function diffManifest({
+  previous,
+  next,
+}: {
+  previous: StoredSandboxEnvironmentManifest | undefined;
+  next: SandboxEnvironmentManifest;
+}): ManifestDiff {
+  const resources_changed =
+    previous === undefined
+      ? true
+      : previous.resources.cpu !== next.resources.cpu ||
+        previous.resources.memory !== next.resources.memory ||
+        previous.resources.disk !== next.resources.disk;
+  return {
+    build_script_changed: previous?.image?.build_script !== next.image?.build_script,
+    resources_changed,
+    secrets_changed: (next.networking?.secrets ?? []).some(secret => !isRedactedSecretValue(secret.value)),
+  };
+}
+
+/** Daytona snapshot name for an environment version. */
+export function newExternalRef(tenant_id: string): string {
+  return `trueforge-${tenant_id}-${randomUUID()}`;
+}
+
+/** Build the next version row fields (no insert). Secrets / Daytona sync intentionally skipped. */
+export function buildNextVersion({
+  tenant_id,
+  version,
+  previous_manifest,
+  previous_external_ref,
+  manifest,
+  provider_type,
+}: {
+  tenant_id: string;
+  version: number;
+  previous_manifest?: StoredSandboxEnvironmentManifest;
+  previous_external_ref?: string;
+  manifest: SandboxEnvironmentManifest;
+  provider_type: SandboxEnvironmentProviderType;
+}): NextSandboxEnvironmentVersion {
+  const diff = diffManifest({ previous: previous_manifest, next: manifest });
+  // Detect only — do NOT call Daytona secrets APIs here.
+  const needs_secrets = diff.secrets_changed;
+  const needs_snapshot =
+    manifest.image?.type === 'build' && (diff.build_script_changed || diff.resources_changed || !previous_external_ref);
+
+  const resolved = resolveManifestSecrets({
+    manifest,
+    ...(previous_manifest ? { previous: previous_manifest } : {}),
+  });
+
+  // Populate after secretService exists. Secrets loop skipped (Daytona + DB later).
+  return {
+    needs_snapshot,
+    version,
+    manifest: toStoredManifest({ manifest: resolved, provider_type }),
+    status: needs_secrets || needs_snapshot ? 'pending' : 'active',
+    status_reason: null,
+    external_ref: needs_snapshot || !previous_external_ref ? newExternalRef(tenant_id) : previous_external_ref,
+    internal_metadata: SandboxEnvironmentVersionInternalMetadataSchema.parse({}),
+  };
+}

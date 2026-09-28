@@ -16,6 +16,7 @@ import type { Logger } from 'winston';
 import configuration from '../config';
 import type { IMcpServerStore, IMcpServerWithAuthStore } from '../db/mcpServerStore';
 import type { IModelProviderStore } from '../db/modelProviderStore';
+import type { ISandboxEnvironmentStore } from '../db/sandboxEnvironmentStore';
 import type { ISandboxProviderStore } from '../db/sandboxProviderStore';
 import type { ISkillStore } from '../db/skillStore';
 import type { TurnMetadata } from '../db/turnMetadata';
@@ -217,6 +218,7 @@ export async function validateAgentSpec({
   mcpServerStore,
   skillStore,
   sandboxProviderStore,
+  sandboxEnvironmentStore,
   webSearchProviderStore,
 }: {
   spec: AgentSpec;
@@ -225,6 +227,7 @@ export async function validateAgentSpec({
   mcpServerStore: IMcpServerStore;
   skillStore: ISkillStore;
   sandboxProviderStore: ISandboxProviderStore;
+  sandboxEnvironmentStore: ISandboxEnvironmentStore;
   webSearchProviderStore: IWebSearchProviderStore;
 }): Promise<void> {
   const resolved = await getModelDetails({
@@ -277,6 +280,19 @@ export async function validateAgentSpec({
         message: hasSkills
           ? 'skills require a sandbox provider — configure via PUT /settings/sandbox-providers'
           : 'sandbox is enabled but no sandbox provider is configured — PUT /settings/sandbox-providers',
+      });
+    }
+  }
+
+  const environmentName = spec.config.sandbox.environment;
+  if (environmentName !== undefined) {
+    const environment = await sandboxEnvironmentStore.getEnvironment({
+      tenant_id,
+      name: environmentName,
+    });
+    if (environment === undefined) {
+      throw new HTTPException(422, {
+        message: `Unknown sandbox environment "${environmentName}" — not configured`,
       });
     }
   }

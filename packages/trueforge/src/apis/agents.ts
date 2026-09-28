@@ -15,6 +15,7 @@ import {
 } from '../db/agentStore';
 import type { IMcpServerStore } from '../db/mcpServerStore';
 import type { IModelProviderStore } from '../db/modelProviderStore';
+import type { ISandboxEnvironmentStore } from '../db/sandboxEnvironmentStore';
 import type { ISandboxProviderStore } from '../db/sandboxProviderStore';
 import type { ISkillStore } from '../db/skillStore';
 import type { WithTransaction } from '../db/transaction';
@@ -39,6 +40,7 @@ export interface AgentsRouterDeps<TTransaction> {
   resolveMcpServerStore: (c: Context) => IMcpServerStore<TTransaction>;
   resolveSkillStore: ResolveSkillStore<TTransaction>;
   resolveSandboxProviderStore: (c: Context) => ISandboxProviderStore<TTransaction>;
+  sandboxEnvironmentStore: ISandboxEnvironmentStore<TTransaction>;
   resolveWebSearchProviderStore: (c: Context) => IWebSearchProviderStore<TTransaction>;
   withTransaction: WithTransaction<TTransaction>;
   resolveRequestContext: ResolveRequestContext;
@@ -62,6 +64,7 @@ async function validateManifest<TTransaction>({
   mcpServerStore,
   skillStore,
   sandboxProviderStore,
+  sandboxEnvironmentStore,
   webSearchProviderStore,
   tenant_id,
 }: {
@@ -70,6 +73,7 @@ async function validateManifest<TTransaction>({
   mcpServerStore: IMcpServerStore<TTransaction>;
   skillStore: ISkillStore<TTransaction>;
   sandboxProviderStore: ISandboxProviderStore<TTransaction>;
+  sandboxEnvironmentStore: ISandboxEnvironmentStore<TTransaction>;
   webSearchProviderStore: IWebSearchProviderStore<TTransaction>;
   tenant_id: string;
 }): Promise<AgentSpec> {
@@ -80,6 +84,7 @@ async function validateManifest<TTransaction>({
     mcpServerStore,
     skillStore,
     sandboxProviderStore,
+    sandboxEnvironmentStore,
     webSearchProviderStore,
   });
   return spec;
@@ -117,6 +122,7 @@ export function createAgentsRouter<TTransaction>(deps: AgentsRouterDeps<TTransac
       mcpServerStore: deps.resolveMcpServerStore(c),
       skillStore: deps.resolveSkillStore(c),
       sandboxProviderStore: deps.resolveSandboxProviderStore(c),
+      sandboxEnvironmentStore: deps.sandboxEnvironmentStore,
       webSearchProviderStore: deps.resolveWebSearchProviderStore(c),
       tenant_id: requestContext.tenant_id,
     });
@@ -222,6 +228,7 @@ export function createAgentsRouter<TTransaction>(deps: AgentsRouterDeps<TTransac
       mcpServerStore: deps.resolveMcpServerStore(c),
       skillStore: deps.resolveSkillStore(c),
       sandboxProviderStore: deps.resolveSandboxProviderStore(c),
+      sandboxEnvironmentStore: deps.sandboxEnvironmentStore,
       webSearchProviderStore: deps.resolveWebSearchProviderStore(c),
       tenant_id: requestContext.tenant_id,
     });

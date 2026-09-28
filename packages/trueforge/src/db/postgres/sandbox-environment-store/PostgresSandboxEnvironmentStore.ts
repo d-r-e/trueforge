@@ -1,0 +1,275 @@
+import { CreatedBySubjectSchema, type TokenPagination } from '@truefoundry/trueforge-core/agent-session';
+import {
+  decodeOffsetPageToken,
+  paginateOffsetRows,
+} from '@truefoundry/trueforge-core/agent-session/store/OffsetPageToken';
+import type { Kysely, Selectable, Transaction } from 'kysely';
+import { NameSchema } from '../../../schemas/common';
+import { SandboxEnvironmentVersionInternalMetadataSchema } from '../../../schemas/sandboxEnvironment';
+import { newId } from '../../../utils/id';
+import { SANDBOX_ENVIRONMENT_TENANT_NAME_ACTIVE_UQ } from '../../indexes';
+import {
+  SandboxEnvironmentNameConflictError,
+  parseStoredSandboxEnvironmentManifest,
+  type CreateSandboxEnvironmentInput,
+  type DeleteSandboxEnvironmentInput,
+  type GetSandboxEnvironmentInput,
+  type ISandboxEnvironmentStore,
+  type ListSandboxEnvironmentsInput,
+  type MarkSandboxEnvironmentVersionFailedInput,
+  type SandboxEnvironmentRecord,
+  type SandboxEnvironmentVersionRecord,
+  type SandboxEnvironmentVersionWrite,
+  type SandboxEnvironmentWithVersion,
+  type UpdateSandboxEnvironmentInput,
+} from '../../sandboxEnvironmentStore';
+import { isPgConstraint, isUniqueViolation } from '../client';
+import { json, now } from '../sqlExpressions';
+import type { Database, SandboxEnvironmentTable, SandboxEnvironmentVersionTable } from '../types';
+
+type JoinedRow = Selectable<SandboxEnvironmentTable> & {
+  ver_id: string;
+  ver_environment_id: string;
+  ver_version: number;
+  ver_manifest: Selectable<SandboxEnvironmentVersionTable>['manifest'];
+  ver_status: Selectable<SandboxEnvironmentVersionTable>['status'];
+  ver_status_reason: string | null;
+  ver_external_ref: string;
+  ver_internal_metadata: Selectable<SandboxEnvironmentVersionTable>['internal_metadata'];
+  ver_created_by_subject: Selectable<SandboxEnvironmentVersionTable>['created_by_subject'];
+  ver_created_at: Date;
+  ver_updated_at: Date;
+};
+
+function toEnvironmentRecord(row: Selectable<SandboxEnvironmentTable>): SandboxEnvironmentRecord {
+  return {
+    id: row.id,
+    tenant_id: row.tenant_id,
+    name: NameSchema.parse(row.name),
+    description: row.description,
+    active_version: row.active_version,
+    lifecycle_stage: row.lifecycle_stage,
+    created_by_subject: CreatedBySubjectSchema.parse(row.created_by_subject),
+    created_at: row.created_at.toISOString(),
+    updated_at: row.updated_at.toISOString(),
+  };
+}
+
+function toVersionRecord(row: Selectable<SandboxEnvironmentVersionTable>): SandboxEnvironmentVersionRecord {
+  return {
+    id: row.id,
+    environment_id: row.environment_id,
+    version: row.version,
+    manifest: parseStoredSandboxEnvironmentManifest(row.manifest),
+    status: row.status,
+    status_reason: row.status_reason,
+    external_ref: row.external_ref,
+    internal_metadata: SandboxEnvironmentVersionInternalMetadataSchema.parse(row.internal_metadata),
+    created_by_subject: CreatedBySubjectSchema.parse(row.created_by_subject),
+    created_at: row.created_at.toISOString(),
+    updated_at: row.updated_at.toISOString(),
+  };
+}
+
+function toWithVersion(row: JoinedRow): SandboxEnvironmentWithVersion {
+  return {
+    environment: toEnvironmentRecord(row),
+    version: toVersionRecord({
+      id: row.ver_id,
+      environment_id: row.ver_environment_id,
+      version: row.ver_version,
+      manifest: row.ver_manifest,
+      status: row.ver_status,
+      status_reason: row.ver_status_reason,
+      external_ref: row.ver_external_ref,
+      internal_metadata: row.ver_internal_metadata,
+      created_by_subject: row.ver_created_by_subject,
+      created_at: row.ver_created_at,
+      updated_at: row.ver_updated_at,
+    }),
+  };
+}
+
+function activeVersionJoin(db: Kysely<Database> | Transaction<Database>) {
+  return db
+    .selectFrom('sandbox_environment as env')
+    .innerJoin('sandbox_environment_version as ver', join =>
+      join.onRef('ver.environment_id', '=', 'env.id').onRef('ver.version', '=', 'env.active_version'),
+    )
+    .selectAll('env')
+    .select([
+      'ver.id as ver_id',
+      'ver.environment_id as ver_environment_id',
+      'ver.version as ver_version',
+      'ver.manifest as ver_manifest',
+      'ver.status as ver_status',
+      'ver.status_reason as ver_status_reason',
+      'ver.external_ref as ver_external_ref',
+      'ver.internal_metadata as ver_internal_metadata',
+      'ver.created_by_subject as ver_created_by_subject',
+      'ver.created_at as ver_created_at',
+      'ver.updated_at as ver_updated_at',
+    ]);
+}
+
+export class PostgresSandboxEnvironmentStore implements ISandboxEnvironmentStore<Transaction<Database>> {
+  readonly #db: Kysely<Database>;
+
+  constructor(db: Kysely<Database>) {
+    this.#db = db;
+  }
+
+  async listEnvironments(
+    input: ListSandboxEnvironmentsInput,
+    transaction?: Transaction<Database>,
+  ): Promise<{ data: SandboxEnvironmentWithVersion[]; pagination: TokenPagination }> {
+    const db = transaction ?? this.#db;
+    const query = activeVersionJoin(db)
+      .where('env.tenant_id', '=', input.tenant_id)
+      .where('env.lifecycle_stage', '=', 'active')
+      .orderBy('env.name');
+    if (!input.limit) {
+      const rows = await query.execute();
+      return { data: rows.map(toWithVersion), pagination: { limit: rows.length } };
+    }
+    const offset = decodeOffsetPageToken(input.page_token);
+    const rows = await query
+      .limit(input.limit + 1)
+      .offset(offset)
+      .execute();
+    const { data, pagination } = paginateOffsetRows(rows, input.limit, offset);
+    return { data: data.map(toWithVersion), pagination };
+  }
+
+  async getEnvironment(
+    input: GetSandboxEnvironmentInput,
+    transaction?: Transaction<Database>,
+  ): Promise<SandboxEnvironmentWithVersion | undefined> {
+    const db = transaction ?? this.#db;
+    const row = await activeVersionJoin(db)
+      .where('env.tenant_id', '=', input.tenant_id)
+      .where('env.name', '=', input.name)
+      .where('env.lifecycle_stage', '=', 'active')
+      .executeTakeFirst();
+    return row ? toWithVersion(row) : undefined;
+  }
+
+  async createEnvironment(
+    input: CreateSandboxEnvironmentInput,
+    transaction?: Transaction<Database>,
+  ): Promise<SandboxEnvironmentWithVersion & { needs_snapshot: boolean }> {
+    const db = transaction ?? this.#db;
+    const environment_id = newId();
+    const next = input.buildVersion();
+    const { needs_snapshot, ...versionWrite } = next;
+    try {
+      const environmentRow = await db
+        .insertInto('sandbox_environment')
+        .values({
+          id: environment_id,
+          tenant_id: input.tenant_id,
+          name: input.name,
+          description: input.description,
+          active_version: 1,
+          lifecycle_stage: 'active',
+          created_by_subject: json(input.created_by_subject),
+          created_at: now(),
+          updated_at: now(),
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      return {
+        environment: toEnvironmentRecord(environmentRow),
+        version: await this.#insertVersionRow(db, environment_id, versionWrite),
+        needs_snapshot,
+      };
+    } catch (error) {
+      if (isUniqueViolation(error) || isPgConstraint(error, SANDBOX_ENVIRONMENT_TENANT_NAME_ACTIVE_UQ)) {
+        throw new SandboxEnvironmentNameConflictError(
+          { tenant_id: input.tenant_id, name: input.name },
+          { cause: error },
+        );
+      }
+      throw error;
+    }
+  }
+
+  async updateEnvironment(
+    input: UpdateSandboxEnvironmentInput,
+    transaction?: Transaction<Database>,
+  ): Promise<SandboxEnvironmentWithVersion | undefined> {
+    const db = transaction ?? this.#db;
+    const version = await this.#insertVersionRow(db, input.id, input.version);
+    const environmentRow = await db
+      .updateTable('sandbox_environment')
+      .set({
+        active_version: input.active_version,
+        description: input.description,
+        updated_at: now(),
+      })
+      .where('tenant_id', '=', input.tenant_id)
+      .where('id', '=', input.id)
+      .where('lifecycle_stage', '=', 'active')
+      .returningAll()
+      .executeTakeFirst();
+    return environmentRow ? { environment: toEnvironmentRecord(environmentRow), version } : undefined;
+  }
+
+  async markVersionFailed(
+    input: MarkSandboxEnvironmentVersionFailedInput,
+    transaction?: Transaction<Database>,
+  ): Promise<SandboxEnvironmentVersionRecord | undefined> {
+    const db = transaction ?? this.#db;
+    const row = await db
+      .updateTable('sandbox_environment_version')
+      .set({
+        status: 'failed',
+        status_reason: input.status_reason,
+        updated_at: now(),
+      })
+      .where('environment_id', '=', input.environment_id)
+      .where('version', '=', input.version)
+      .returningAll()
+      .executeTakeFirst();
+    return row ? toVersionRecord(row) : undefined;
+  }
+
+  async deleteEnvironment(input: DeleteSandboxEnvironmentInput, transaction?: Transaction<Database>): Promise<void> {
+    const db = transaction ?? this.#db;
+    await db
+      .updateTable('sandbox_environment')
+      .set({
+        lifecycle_stage: 'deleted',
+        updated_at: now(),
+      })
+      .where('tenant_id', '=', input.tenant_id)
+      .where('name', '=', input.name)
+      .where('lifecycle_stage', '=', 'active')
+      .execute();
+  }
+
+  async #insertVersionRow(
+    db: Kysely<Database> | Transaction<Database>,
+    environment_id: string,
+    version: SandboxEnvironmentVersionWrite,
+  ): Promise<SandboxEnvironmentVersionRecord> {
+    const row = await db
+      .insertInto('sandbox_environment_version')
+      .values({
+        id: newId(),
+        environment_id,
+        version: version.version,
+        manifest: json(version.manifest),
+        status: version.status,
+        status_reason: version.status_reason,
+        external_ref: version.external_ref,
+        internal_metadata: json(version.internal_metadata),
+        created_by_subject: json(version.created_by_subject),
+        created_at: now(),
+        updated_at: now(),
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    return toVersionRecord(row);
+  }
+}

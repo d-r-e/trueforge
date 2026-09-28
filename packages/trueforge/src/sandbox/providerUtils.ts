@@ -62,14 +62,19 @@ export function toDaytonaSandboxProvider({
 /**
  * Builds the runtime SandboxProvider for a store record. One switch on `manifest.type`.
  * No network I/O until a provider method is called.
+ *
+ * Optional `build_metadata` overrides the record's persisted metadata (e.g. env-version
+ * snapshot `build_ref`); ignored for non-Daytona providers.
  */
 export function toSandboxProviderFromRecord({
   record,
   tenant_id,
   logger,
+  build_metadata,
 }: {
   record: SandboxProviderRecord;
   tenant_id: string;
+  build_metadata?: SandboxBuildMetadata | null;
   logger: Logger;
 }): SandboxProvider {
   switch (record.manifest.type) {
@@ -78,7 +83,7 @@ export function toSandboxProviderFromRecord({
         manifest: record.manifest,
         tenant_id,
         logger,
-        build_metadata: record.build_metadata,
+        build_metadata: build_metadata ?? record.build_metadata,
       });
     case 'truefoundry':
       return new TFYSandboxProvider({
