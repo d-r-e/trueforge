@@ -520,6 +520,7 @@ export class AgentThreadOrchestrator {
     }
 
     return {
+      status: !rootAgentError && requiredActions.length > 0 ? 'paused' : 'done',
       output,
       required_actions: requiredActions,
       root_agent_error: rootAgentError,

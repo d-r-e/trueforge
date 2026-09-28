@@ -55,6 +55,7 @@ const EXPECTED_TURN_1_EVENTS = [
 ];
 
 const TURN_1_OUTPUT = {
+  status: 'paused',
   output: null,
   required_actions: [
     {
@@ -97,6 +98,7 @@ describe('orchestration: pause then resume on tool approval', () => {
     ];
 
     const TURN_2_OUTPUT = {
+      status: 'done',
       output: { thread_id: ROOT_ID, content: ROOT_FINAL },
       required_actions: [],
     };
@@ -177,6 +179,7 @@ describe('orchestration: pause then resume on tool approval', () => {
     ];
 
     const TURN_2_OUTPUT = {
+      status: 'done',
       output: { thread_id: ROOT_ID, content: ROOT_FINAL },
       required_actions: [],
     };

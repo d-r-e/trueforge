@@ -136,6 +136,8 @@ export type AgentThreadExecutionEvent = WithRegisteredPassthrough<
 >;
 
 export interface AgentThreadExecutionResult {
+  /** HITL stops as `paused`; a finished run is `done`. */
+  status: 'paused' | 'done';
   output: ModelMessageEvent | null;
   required_actions: ActionRequiredEvent[];
   root_agent_error?: Pick<ThreadStateError, 'error' | 'output'> | undefined;

@@ -16,7 +16,13 @@ import { getEmptyCurrentContextUsage } from '../core/runtime/contextUsage';
 import type { AgentThreadMetrics } from '../core/runtime/metrics';
 import type { ITurnResourceResolver } from './ITurnResourceResolver';
 import type { TurnRecord } from './models/TurnRecord';
-import { EventType, type PersistedTurnEvent, type TurnCreatedEvent, type TurnDoneEvent } from './schemas/events';
+import {
+  EventType,
+  type PersistedTurnEvent,
+  type TurnCreatedEvent,
+  type TurnDoneEvent,
+  type TurnUpdateEvent,
+} from './schemas/events';
 import type { TokenPagination } from './schemas/pagination';
 import {
   CancellationReason,
@@ -243,6 +249,7 @@ export class TurnHandle<TTurnCustom extends object = Record<string, never>> {
           if (error instanceof TurnNotRunningError) {
             frozenByStore = true;
             const emptyResult: AgentThreadExecutionResult = {
+              status: 'done',
               output: null,
               required_actions: [],
             };
@@ -275,6 +282,7 @@ export class TurnHandle<TTurnCustom extends object = Record<string, never>> {
     } finally {
       if (generator) {
         const emptyResult: AgentThreadExecutionResult = {
+          status: 'done',
           output: null,
           required_actions: [],
         };
@@ -284,6 +292,58 @@ export class TurnHandle<TTurnCustom extends object = Record<string, never>> {
       const updatedAt = new Date();
       const createdAtIso = updatedAt.toISOString();
       const metrics = turnMetricsFromAgentThreadMetrics(orchestrator.getMetrics());
+      if (!signal.aborted && caughtError === undefined && executeResult?.status === 'paused') {
+        const pausedState = {
+          status: 'paused' as const,
+          action_required_on_events: executeResult.required_actions.map(action => ({ id: action.id })),
+        };
+        const turnUpdate: TurnUpdateEvent = {
+          type: EventType.TURN_UPDATE,
+          id: newEventId(),
+          created_at: createdAtIso,
+          state: pausedState,
+          thread_id: null,
+        };
+        try {
+          await this.store.updateTurnNonTerminalState({
+            session_id: this.turn.session_id,
+            turn_id: this.turn.turn_id,
+            state: pausedState,
+            turn_update_event: turnUpdate,
+          });
+          this.turn = { ...this.turn, state: pausedState, updated_at: updatedAt };
+        } catch (persistError) {
+          if (persistError instanceof TurnNotRunningError) {
+            const state: TerminalTurnState = { ...persistError.state, metrics };
+            this.turn = { ...this.turn, state, updated_at: updatedAt };
+            await resolver.close().catch(() => {
+              /* no-op */
+            });
+            yield {
+              type: EventType.TURN_DONE,
+              id: newEventId(),
+              created_at: createdAtIso,
+              state,
+              thread_id: null,
+            };
+            // eslint-disable-next-line no-unsafe-finally -- deliberate: a concurrent freeze during the pause write makes the store's state authoritative, so the stream ends here
+            return;
+          }
+          await resolver.close().catch(() => {
+            /* no-op */
+          });
+          // eslint-disable-next-line no-unsafe-finally -- deliberate: the pause-state write runs in finally and its failure must reject the stream
+          throw persistError;
+        }
+
+        await resolver.close().catch((err: unknown) => {
+          resolver.logger.warn('TurnResourceResolver.close() failed', { err });
+        });
+        yield turnUpdate;
+        // eslint-disable-next-line no-unsafe-finally -- deliberate: HITL is non-terminal; emit turn.update and skip turn.done
+        return;
+      }
+
       let terminalState: TerminalTurnState;
       if (signal.aborted) {
         terminalState = {

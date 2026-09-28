@@ -74,6 +74,7 @@ const EXPECTED_EVENTS = [
 ];
 
 const OUTPUT = {
+  status: 'done',
   output: { thread_id: ROOT_ID, content: ROOT_FINAL },
   required_actions: [],
 };

@@ -1,13 +1,19 @@
+import { MAIN_THREAD_ID } from '../../src/agent-session/models/TurnRecord';
 import { EventType } from '../../src/agent-session/schemas/events';
 import { CancellationReason } from '../../src/agent-session/schemas/turn';
 import { Sessions } from '../../src/agent-session/Sessions';
 import { InMemorySessionStore } from '../../src/agent-session/store/InMemorySessionStore';
+import { TurnHandle, type TurnStreamingEvent } from '../../src/agent-session/TurnHandle';
 import { TurnResourceResolver } from '../../src/agent-session/TurnResourceResolver';
+import { newEventId } from '../../src/core/events/schema';
 import { RemoteMCP } from '../../src/core/mcp/RemoteMCP';
+import type { AgentThreadOrchestrator } from '../../src/core/runtime/AgentThreadOrchestrator';
+import { createEmptyAgentThreadMetrics } from '../../src/core/runtime/metrics';
 import { makeStubPublicSandbox } from '../core/harnessMocks';
 import {
   emptyLlmStream,
   makeAgentSpec,
+  makeCreateTurnInput,
   makeMockILLM,
   makeSilentLogger,
   makeTestResolver,
@@ -79,6 +85,78 @@ describe('TurnHandle.stream()', () => {
       turn_id: turn.id,
     });
     expect(stored?.state.status).toBe('done');
+  });
+
+  it('on HITL persists paused and emits turn.update', async () => {
+    const { store } = await createSession();
+    const turnId = mintTestTurnId();
+    await store.createTurn(makeCreateTurnInput({ sessionId: 's1', turnId }));
+    const record = await store.getTurn({ session_id: 's1', turn_id: turnId });
+    if (!record) {
+      throw new Error('expected seeded running turn');
+    }
+
+    const approvalRequired = {
+      type: EventType.TOOL_APPROVAL_REQUIRED,
+      id: newEventId(),
+      created_at: new Date().toISOString(),
+      thread_id: MAIN_THREAD_ID,
+      tool_calls: [{ id: 'call-write', source_event_id: newEventId() }],
+    };
+    const orchestrator = {
+      async *execute() {
+        yield approvalRequired;
+        return {
+          status: 'paused',
+          output: null,
+          required_actions: [approvalRequired],
+        };
+      },
+      getMetrics: () => createEmptyAgentThreadMetrics(),
+    } as unknown as AgentThreadOrchestrator;
+
+    const turn = new TurnHandle({
+      store,
+      turn: record,
+      orchestrator,
+      resolver: makeTestResolver(),
+      signal: new AbortController().signal,
+    });
+
+    const events: TurnStreamingEvent[] = [];
+    for await (const event of turn.stream()) {
+      events.push(event);
+    }
+
+    expect(events[0]?.type).toBe(EventType.TURN_CREATED);
+    expect(events.some(event => event.type === EventType.TOOL_APPROVAL_REQUIRED)).toBe(true);
+    expect(events.some(event => event.type === EventType.TURN_DONE)).toBe(false);
+    const last = events[events.length - 1];
+    expect(last).toMatchObject({
+      type: EventType.TURN_UPDATE,
+      state: {
+        status: 'paused',
+        action_required_on_events: [{ id: approvalRequired.id }],
+      },
+    });
+    expect(turn.state).toEqual({
+      status: 'paused',
+      action_required_on_events: [{ id: approvalRequired.id }],
+    });
+
+    const { data } = await turn.listEvents({ limit: 50 });
+    expect(data.some(event => event.type === EventType.TURN_CREATED)).toBe(true);
+    expect(data.some(event => event.type === EventType.TURN_UPDATE)).toBe(true);
+    expect(data.some(event => event.type === EventType.TURN_DONE)).toBe(false);
+
+    const stored = await store.getTurn({
+      session_id: 's1',
+      turn_id: turn.id,
+    });
+    expect(stored?.state).toEqual({
+      status: 'paused',
+      action_required_on_events: [{ id: approvalRequired.id }],
+    });
   });
 
   it('persists final turn usage from orchestrator metrics', async () => {

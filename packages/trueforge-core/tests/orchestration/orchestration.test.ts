@@ -23,6 +23,7 @@ const EXPECTED_EVENTS = [
 ];
 
 const OUTPUT = {
+  status: 'done',
   output: { thread_id: THREAD_ID, content: REPLY },
   required_actions: [],
 };
