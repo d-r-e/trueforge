@@ -12,6 +12,8 @@ export const SANDBOX_DEFAULT_SETTINGS = {
 /** Daytona settings JSON in `TRUEFOUNDRY_SANDBOX_SETTINGS`*/
 export const DaytonaSandboxSettingsSchema = z.object({
   snapshotName: z.string().min(1, 'snapshotName is required'),
+  /** Omit for Daytona Cloud; set for a self-hosted Daytona control plane. */
+  apiUrl: z.url().optional(),
   autoStopIntervalInMinutes: z.number().default(SANDBOX_DEFAULT_SETTINGS.autoStopIntervalInMinutes),
   autoArchiveIntervalInMinutes: z.number().default(SANDBOX_DEFAULT_SETTINGS.autoArchiveIntervalInMinutes),
   autoDeleteIntervalInMinutes: z.number().default(SANDBOX_DEFAULT_SETTINGS.autoDeleteIntervalInMinutes),
