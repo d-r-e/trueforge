@@ -87,7 +87,7 @@ describe('TurnHandle.stream()', () => {
     expect(stored?.state.status).toBe('done');
   });
 
-  it('on HITL persists paused and emits turn.update', async () => {
+  async function createPausedHitlTurn(options?: { close?: () => Promise<void> }) {
     const { store } = await createSession();
     const turnId = mintTestTurnId();
     await store.createTurn(makeCreateTurnInput({ sessionId: 's1', turnId }));
@@ -103,60 +103,82 @@ describe('TurnHandle.stream()', () => {
       thread_id: MAIN_THREAD_ID,
       tool_calls: [{ id: 'call-write', source_event_id: newEventId() }],
     };
-    const orchestrator = {
-      async *execute() {
-        yield approvalRequired;
-        return {
-          status: 'paused',
-          output: null,
-          required_actions: [approvalRequired],
-        };
-      },
-      getMetrics: () => createEmptyAgentThreadMetrics(),
-    } as unknown as AgentThreadOrchestrator;
-
+    const controller = new AbortController();
     const turn = new TurnHandle({
       store,
       turn: record,
-      orchestrator,
-      resolver: makeTestResolver(),
-      signal: new AbortController().signal,
+      orchestrator: {
+        async *execute() {
+          yield approvalRequired;
+          return {
+            status: 'paused',
+            output: null,
+            required_actions: [approvalRequired],
+          };
+        },
+        getMetrics: () => createEmptyAgentThreadMetrics(),
+      } as unknown as AgentThreadOrchestrator,
+      resolver: makeTestResolver(options?.close ? { close: options.close } : undefined),
+      signal: controller.signal,
+    });
+    return { store, turn, controller, approvalRequired };
+  }
+
+  it('on HITL persists paused, emits turn.update, and parks with resources open', async () => {
+    let closeCalls = 0;
+    const { store, turn, controller, approvalRequired } = await createPausedHitlTurn({
+      close: () => {
+        closeCalls += 1;
+        return Promise.resolve();
+      },
     });
 
     const events: TurnStreamingEvent[] = [];
     for await (const event of turn.stream()) {
       events.push(event);
+      if (event.type === EventType.TURN_UPDATE) {
+        expect(turn.state).toEqual({
+          status: 'paused',
+          action_required_on_events: [{ id: approvalRequired.id }],
+        });
+        expect(closeCalls).toBe(0);
+        expect(events.some(item => item.type === EventType.TURN_DONE)).toBe(false);
+        const { data } = await turn.listEvents({ limit: 50 });
+        expect(data.some(item => item.type === EventType.TURN_UPDATE)).toBe(true);
+        expect(data.some(item => item.type === EventType.TURN_DONE)).toBe(false);
+        expect((await store.getTurn({ session_id: 's1', turn_id: turn.id }))?.state.status).toBe('paused');
+        controller.abort(CancellationReason.ClientCancelled);
+      }
     }
 
     expect(events[0]?.type).toBe(EventType.TURN_CREATED);
     expect(events.some(event => event.type === EventType.TOOL_APPROVAL_REQUIRED)).toBe(true);
-    expect(events.some(event => event.type === EventType.TURN_DONE)).toBe(false);
-    const last = events[events.length - 1];
-    expect(last).toMatchObject({
-      type: EventType.TURN_UPDATE,
-      state: {
-        status: 'paused',
-        action_required_on_events: [{ id: approvalRequired.id }],
+    expect(turn.state.status).toBe('cancelled');
+    expect(closeCalls).toBe(1);
+    expect(events.some(event => event.type === EventType.TURN_DONE)).toBe(true);
+  });
+
+  it('consumer disconnect while paused leaves the turn paused and resources open', async () => {
+    let closeCalls = 0;
+    const { store, turn, approvalRequired } = await createPausedHitlTurn({
+      close: () => {
+        closeCalls += 1;
+        return Promise.resolve();
       },
     });
+
+    for await (const event of turn.stream()) {
+      if (event.type === EventType.TURN_UPDATE) {
+        break;
+      }
+    }
+
     expect(turn.state).toEqual({
       status: 'paused',
       action_required_on_events: [{ id: approvalRequired.id }],
     });
-
-    const { data } = await turn.listEvents({ limit: 50 });
-    expect(data.some(event => event.type === EventType.TURN_CREATED)).toBe(true);
-    expect(data.some(event => event.type === EventType.TURN_UPDATE)).toBe(true);
-    expect(data.some(event => event.type === EventType.TURN_DONE)).toBe(false);
-
-    const stored = await store.getTurn({
-      session_id: 's1',
-      turn_id: turn.id,
-    });
-    expect(stored?.state).toEqual({
-      status: 'paused',
-      action_required_on_events: [{ id: approvalRequired.id }],
-    });
+    expect(closeCalls).toBe(0);
+    expect((await store.getTurn({ session_id: 's1', turn_id: turn.id }))?.state.status).toBe('paused');
   });
 
   it('persists final turn usage from orchestrator metrics', async () => {
