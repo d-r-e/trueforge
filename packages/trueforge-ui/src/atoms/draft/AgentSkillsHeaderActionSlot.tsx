@@ -1,6 +1,7 @@
 'use client';
 
 import { Icon } from '../../icons/Icon.js';
+import { useOptionalResolvedRoutes } from '../../routing/ResolvedRoutesContext.js';
 import {
   useOptionalCatalogServer,
   useServerCapabilities,
@@ -9,14 +10,18 @@ import {
 import { useOptionalShellMode } from '../../server/ShellModeContext.js';
 import { isSettingsChromeEnabled } from '../../server/serverChrome.js';
 import { Button } from '../primitives/Button.js';
+import { resolveSettingsSkillsUrl } from './resolveSkillsNavigationUrls.js';
+import { DEFAULT_PLATFORM_SKILLS_URL, DEFAULT_SETTINGS_SKILLS_URL } from './skillsNavigationDefaults.js';
 
-export const DEFAULT_PLATFORM_SKILLS_URL = '/skills';
-export const DEFAULT_SETTINGS_SKILLS_URL = '/settings';
+export { DEFAULT_PLATFORM_SKILLS_URL, DEFAULT_SETTINGS_SKILLS_URL } from './skillsNavigationDefaults.js';
 
 export type AgentSkillsHeaderActionSlotProps = {
-  /** External skills registry when TrueForge settings skills are unavailable. Pass `""` to omit. */
+  /**
+   * External skills registry at the **site origin**.
+   * Not prefixed with TrueForge `routes.basename`. Pass `""` to omit.
+   */
   platformSkillsUrl?: string;
-  /** Settings path fallback when shell context is missing (in-app flow uses `setSettingsOpen`). */
+  /** Settings fallback when shell context is missing; default is basename-aware via router. */
   settingsSkillsUrl?: string;
 };
 
@@ -46,6 +51,8 @@ export function AgentSkillsHeaderActionSlot({
   const capabilities = useServerCapabilities();
   const capabilitiesSettled = useServerCapabilitiesSettled();
   const shell = useOptionalShellMode();
+  const routes = useOptionalResolvedRoutes();
+  const settingsHref = resolveSettingsSkillsUrl({ settingsSkillsUrl, routes });
 
   if (!capabilitiesSettled) {
     return null;
@@ -70,7 +77,7 @@ export function AgentSkillsHeaderActionSlot({
             shell.setSettingsOpen(true, 'skills');
             return;
           }
-          window.location.assign(settingsSkillsUrl);
+          window.location.assign(settingsHref);
           return;
         }
         if (hasPlatformSkillsDestination(platformSkillsUrl)) {
@@ -78,8 +85,8 @@ export function AgentSkillsHeaderActionSlot({
         }
       }}
     >
-      Add New Skill
-     <Icon name="external-link" className="size-3 shrink-0" />
+      Register Skills
+      <Icon name="external-link" className="size-3 shrink-0" />
     </Button.Ghost>
   );
 }

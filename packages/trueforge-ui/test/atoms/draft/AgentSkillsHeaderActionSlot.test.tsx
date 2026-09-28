@@ -15,6 +15,7 @@ vi.mock('@/server/ShellModeContext.js', () => ({
 const useServerCapabilities = vi.fn();
 const useOptionalCatalogServer = vi.fn();
 const useServerCapabilitiesSettled = vi.fn();
+const useOptionalResolvedRoutes = vi.fn();
 
 vi.mock('@/server/ServerContext.js', async importOriginal => {
   const actual = await importOriginal<typeof import('@/server/ServerContext.js')>();
@@ -25,6 +26,10 @@ vi.mock('@/server/ServerContext.js', async importOriginal => {
     useServerCapabilitiesSettled: () => useServerCapabilitiesSettled(),
   };
 });
+
+vi.mock('@/routing/ResolvedRoutesContext.js', () => ({
+  useOptionalResolvedRoutes: () => useOptionalResolvedRoutes(),
+}));
 
 async function unavailable(): Promise<never> {
   throw new Error('Unexpected settings catalog call');
@@ -51,6 +56,7 @@ describe('AgentSkillsHeaderActionSlot', () => {
       settings: { enabled: true },
     });
     useOptionalCatalogServer.mockReturnValue(settingsCatalog);
+    useOptionalResolvedRoutes.mockReturnValue(null);
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: { ...window.location, assign },

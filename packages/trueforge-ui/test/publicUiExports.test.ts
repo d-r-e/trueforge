@@ -66,6 +66,8 @@ const expectedRuntimeExports: Array<keyof typeof sdk> = [
   'CustomActionContainer',
   'CustomActionRenderersProvider',
   'DEFAULT_AGENT_CONFIG',
+  'DEFAULT_PLATFORM_SKILLS_URL',
+  'DEFAULT_SETTINGS_SKILLS_URL',
   'DraftAgentConfigTrigger',
   'DraftCapabilitiesPanel',
   'DEFAULT_TABLE_PAGE_SIZE',
