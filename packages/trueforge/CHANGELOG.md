@@ -1,5 +1,31 @@
 # @truefoundry/trueforge
 
+## 0.3.0-rc.1
+
+### Patch Changes
+
+- 33cbe52: Default MCP tool approval to `@write` and `@destructive` again. Unlabeled tools still run without a pause unless named or covered by `@all`.
+- a638cfc: Stop reflecting the raw token-exchange error into the OIDC failure redirect. The message carried upstream endpoint and issuer detail into the browser's address bar; failures now use the same generic `login_failed` reason as the other callback paths, with full detail kept in the server log.
+- 46c8280: Add newer model presets to the shipped model catalog for the providers it already lists.
+- c023517: Add sandbox_environment / sandbox_environment_version tables and dummy CRUD APIs at `/api/v1/sandbox-environments`.
+- 4726a31: Let a session owner mark a session shared so any subject in the tenant can read it by id, including turns and events (not subscribe or sandbox downloads).
+- f98e575: Add Sentry for critical-flow error reporting (TrueFoundry auth-server or SENTRY_DSN init) with configurable additional tags.
+- 0c82412: Add `POST /sessions/{session_id}/turns/{turn_id}/events` for tip HITL / policy events.
+- 5adde28: Add `turn_inbound_events` store API for durable tip HITL send-event inbox (insert / list unconsumed / mark consumed), with Postgres and SQLite migrations.
+- bbc4f7d: Add `user.mcp_auth_continue` (`{ "type": "user.mcp_auth_continue" }`) on POST `/events`, session events, and the SSE stream. Add paused to turn state.
+- b342a21: Add `user.tool_approval_policy` send-event schema (`allow_session`, optional ISO `expire_at`). Send-only like `user.tool_approval` / `user.tool_response` — not on the durable stream.
+- Updated dependencies [829ac6e]
+- Updated dependencies [829ac6e]
+- Updated dependencies [829ac6e]
+- Updated dependencies [33cbe52]
+- Updated dependencies [4726a31]
+- Updated dependencies [0c82412]
+- Updated dependencies [5adde28]
+- Updated dependencies [bbc4f7d]
+- Updated dependencies [b342a21]
+  - @truefoundry/trueforge-sdk@0.2.1-rc.1
+  - @truefoundry/trueforge-core@0.3.0-rc.1
+
 ## 0.3.0-rc.0
 
 ### Minor Changes
