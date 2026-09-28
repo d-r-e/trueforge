@@ -283,10 +283,7 @@ function ThreadListItemRow({
               deleteDisabled={deleteDisabled}
               onRename={() => setRenameOpen(true)}
               onDelete={() => {
-                track(
-                  AnalyticsEvents.Session.DELETED,
-                  withSessionProps(undefined, { sessionId: remoteId, agentName }),
-                );
+                track(AnalyticsEvents.Session.DELETED, withSessionProps(undefined, { sessionId: remoteId, agentName }));
               }}
             />
           ) : undefined
